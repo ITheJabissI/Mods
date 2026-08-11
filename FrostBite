@@ -72,7 +72,7 @@ if not s then
     return
 end
 
-local entity = s:FindFirstChildWhichIsA("BasePart")
+local entity = s.RushNew
 entity.CFrame = GetRoom():WaitForChild("RoomEntrance").CFrame * CFrame.new(0, 5, -15)
 entity.Part.CFrame = entity.CFrame
 
@@ -81,7 +81,7 @@ local sound = Instance.new("Sound")
 sound.SoundId = "rbxassetid://137044859218769"
 sound.Looped = false
 sound.Volume = 5
-sound.PlaybackSpeed = 0.9
+sound.PlaybackSpeed = 1
 sound.Parent = s
 sound:Play()
 
@@ -113,9 +113,10 @@ local attachment = entity:FindFirstChild("Attachment")
 if attachment then
     local head = attachment:FindFirstChild("Head")
     if head then
-        local particles = head:FindFirstChild("Particles")
-        if particles then
-            particles.Enabled = true
+        local particle1 = head:FindFirstChild("Face1")
+        local particle2 = head:FindFirstChild("Face2")
+            particle1.Enabled = true
+            particle2.Enabled = true
         end
     end
 end
@@ -147,9 +148,10 @@ local attachment = entity:FindFirstChild("Attachment")
 if attachment then
     local head = attachment:FindFirstChild("Head")
     if head then
-        local particles = head:FindFirstChild("Particles")
-        if particles then
-            particles.Enabled = false
+        local particle1 = head:FindFirstChild("Face1")
+        local particle2 = head:FindFirstChild("Face2")
+            particle1.Enabled = false
+            particle2.Enabled = false
         end
     end
 end
