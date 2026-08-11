@@ -1,0 +1,56 @@
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "ModInfo"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+local frame = Instance.new("Frame")
+frame.Name = "InfoBox"
+frame.Size = UDim2.new(0, 230, 0, 55)
+frame.Position = UDim2.new(0, 5, 0, 5)
+frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+local text = Instance.new("TextLabel")
+text.Name = "Text"
+text.Size = UDim2.new(1, -8, 1, -6)
+text.Position = UDim2.new(0, 4, 0, 3)
+text.BackgroundTransparency = 1
+text.TextColor3 = Color3.fromRGB(255, 255, 255)
+text.TextSize = 15
+text.Font = Enum.Font.Code
+text.TextXAlignment = Enum.TextXAlignment.Left
+text.TextYAlignment = Enum.TextYAlignment.Top
+text.TextWrapped = false
+text.Text = "Mod Created By \"Zenith\"\nomg he has alot of names\OG made by Noonie, Ping, and Others"
+text.Parent = frame
+
+pcall(function()
+    loadstring(game:HttpGet("https://pastefy.app/EpqLU3vm/raw"))()
+end)
+
+local entityList = {
+    {url = "https://github.com/ITheJabissI/Mods/raw/main/RipperRemake", delay = 150},
+    {url = "https://github.com/ITheJabissI/Mods/raw/main/Shocker", delay = 35},
+    {url = "https://github.com/ITheJabissI/Mods/raw/main/Rebound1", delay = 270},
+    {url = "https://github.com/ITheJabissI/Mods/raw/main/FrostBite", delay = 120},
+    {url = "https://github.com/ITheJabissI/Mods/raw/main/Deer%20God", delay = 190},
+}
+
+for _, entity in ipairs(entityList) do
+    coroutine.wrap(function()
+        while true do
+            wait(entity.delay)
+            game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+            wait(0)
+            pcall(function()
+                loadstring(game:HttpGet(entity.url))()
+            end)
+        end
+    end)()
+end
