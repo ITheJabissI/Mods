@@ -1,227 +1,332 @@
-local Spawner = loadstring(game:HttpGet('https://raw.githubusercontent.com/MuhXd/DoorSuff/main/OtherSuff/DoorEntitySpawn%2BSource'))()
+-- Spawn Entity
+local spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Entity%20Spawner/V2/Source.lua"))()
+local get = true
 
--- Create entity
-local entity = Spawner.createEntity({
-    CustomName = "Ripper",
-    Model = "https://github.com/ITheJabissI/Mods/raw/main/RipperRemake.rbxm",
-    Speed = 185,
-    DelayTime = 11,
-    HeightOffset = 1,
-    CanKill = true,
-    NoDieOnCrouching = false,
-    NoHiding = false,
-    AntiCrucifix = false,
-    KillRange = 100,
-    OneRoom = false,
-    DieOnLook = false,
-    BreakLights = true,
-    BackwardsMovement = false,
-    MovementDeath = {
-        false,
-        '1',
-    },
-    FlickerLights = {
-        false,
-        80
-    },
-    Cycles = {
-        Min = 1,
-        Max = 1,
-        WaitTime = 1,
-    },
-    CamShake = {
-        true,
-        {3.5, 20, 0.1, 1},
-        100,
-    },
-    Jumpscare = {
-        true,
-        {
-            Image1 = "rbxassetid://11394048190",
-            Image2 = "rbxassetid://11394048190",
-            Shake = true,
-            Sound1 = {
-                10483790459,
-                { Volume = 0.5 },
-            },
-            Sound2 = {
-                10483837590,
-                { Volume = 0.5 },
-            },
-            Flashing = {
-                true,
-                Color3.fromRGB(255, 255, 255),
-            },
-            Tease = {
-                false,
-                Min = 1,
-                Max = 1,
-            },
-        },
-    },
-    Color = 'GuidingLight',
-    DiffrentMessages = false,
-    CustomDialog = {
-        {"Claim has seen you.", "It will consume anyone on sight.", "It takes a bit to fully spawn in", "so you can use that to your advantage."},
-        {"Stop Dieing"},
-        {"Bruh", "Use what you have learned from Rush!"},
-        {"It seems like Template is causing quite the ruckus...", "Hide in a closet or bed as quickly as possible!"},
-        {"I have told You What to do", "YOU JUST HAVE A SKILL ISSUE"}
-    }
+local entity = spawner.Create({
+	Entity = {
+		Name = "RipperMoving",
+		Asset = "https://github.com/ITheJabissI/Mods/raw/main/RipperMovin.rbxm",
+		HeightOffset = 1
+	},
+	Lights = {
+		Flicker = { Enabled = false, Duration = 7 },
+		Shatter = false,
+		Repair = false
+	},
+	Earthquake = { Enabled = false },
+	CameraShake = {
+		Enabled = true,
+		Range = 100,
+		Values = {5, 3, 2, 2}
+	},
+	Movement = {
+		Speed = 125,
+		Delay = 9,
+		Reversed = false
+	},
+	Rebounding = {
+		Enabled = false,
+		Type = "Ambush",
+		Min = 2,
+		Max = 2,
+		Delay = 0
+	},
+	Damage = {
+		Enabled = true,
+		Range = 40,
+		Amount = 0.01
+	},
+	Crucifixion = {
+		Enabled = true,
+		Range = 100,
+		Resist = false,
+		Break = true
+	},
+	Death = {
+		Type = "Guiding",
+		Hints = {"You dead to Ripper", "Just hide when he appears"},
+		Cause = ""
+	}
 })
 
--- Debug events
-entity.Debug.OnEntityMoving = function(Invincible, Hiding, plrCollisionPoint)
-    print("Invincible: "..tostring(Invincible))
-    print("Player to Entity Collision: "..tostring(plrCollisionPoint))
-    print("Hiding: "..tostring(Hiding))
+-- Room Light Change
+local TweenService = game:GetService("TweenService")
+local Tweeninfo = TweenInfo.new(5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+local color = {Color = Color3.new(1, 0, 0)}
+
+for _, v in pairs(workspace.CurrentRooms[game.ReplicatedStorage.GameData.LatestRoom.Value]:GetDescendants()) do
+    if v:IsA("Light") then
+        TweenService:Create(v, Tweeninfo, color):Play()
+    elseif v.Parent.Name == "LightFixture" then
+        TweenService:Create(v.Parent, Tweeninfo, color):Play()
+    end
 end
 
-entity.Debug.OnEntitySpawned = function()
-    print("Entity has spawned:")
-entity.Debug.OnEntitySpawned = function()
-    print("Entity has spawned")
+-- Camera Shake & Color Correction
+local CameraShaker = require(game.ReplicatedStorage.CameraShaker)
+local camera = workspace.CurrentCamera
+local camShake = CameraShaker.new(Enum.RenderPriority.Camera.Value, function(shakeCf)
+    camera.CFrame = camera.CFrame * shakeCf
+end)
+camShake:Start()
+camShake:ShakeOnce(5, 5, 0, 5.5, 1, 0)
+camShake:Shake(CameraShaker.Presets.Earthquake)
 
-    task.wait(1) -- Đợi entity ổn định
+local Debris = game:GetService("Debris")
+local tweenservice = game:GetService("TweenService")
+local colorEffect = Instance.new("ColorCorrectionEffect", game.Lighting)
 
-    local Players = game:GetService("Players")
-    local RunService = game:GetService("RunService")
-    local LocalPlayer = Players.LocalPlayer
-    local Camera = workspace.CurrentCamera
+tweenservice:Create(colorEffect, TweenInfo.new(5), {
+    TintColor = Color3.fromRGB(255, 0, 0),
+    Saturation = -0.7,
+    Contrast = 0.2
+}):Play()
 
-    local isTargeting = false
-    local startTime = 0
-    local cameraLocked = false
-    local killCountdown = 4
+function GitAud(soundgit,filename)
+    SoundName=tostring(SoundName)
+    local url=soundgit
+    local FileName = filename
+    writefile(FileName..".mp3", game:HttpGet(url))
+    return (getcustomasset or getsynasset)(FileName..".mp3")
+end
 
-    RunService.Heartbeat:Connect(function()
-        if not entity.Model or not entity.Model:FindFirstChild("PrimaryPart") then return end
+function CustomGitSound(soundlink, vol, filename)
+    local sound = Instance.new("Sound")
+    sound.SoundId = GitAud(soundlink, filename)
+    sound.Parent = workspace
+    sound.Name = "Spawn"
+    sound.Volume = 40
+   sound:Play()
+end
 
-        local char = LocalPlayer.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+CustomGitSound("https://github.com/eoyoustme/rebouna/blob/main/Record_2025-07-07-09-56-11.mp3?raw=true", 1, " Spawn")
 
-        local hrp = char.HumanoidRootPart
-        local dist = (entity.Model.PrimaryPart.Position - hrp.Position).Magnitude
+-- Entity Despawn Callback
+entity:SetCallback("OnDespawning", function()
+    camShake:Start()
+    camShake:ShakeOnce(10, 15, 0, 5.5, 1, 0)
+    camShake:Shake(CameraShaker.Presets.Earthquake)
 
-        if dist <= entity.Config.KillRange then
-            if not isTargeting then
-                isTargeting = true
-                startTime = tick()
-                print(">>> Player entered kill zone!")
+    workspace.CurrentRooms[game.ReplicatedStorage.GameData.LatestRoom.Value]:WaitForChild("Door").ClientOpen:FireServer()
 
-                -- Move entity 4 studs in front of player
-                local forward = hrp.CFrame.LookVector
-                local newPos = hrp.Position - forward * 4
-                entity.Model:SetPrimaryPartCFrame(CFrame.new(newPos))
+    for _, v in pairs(workspace:WaitForChild("Ripper"):GetDescendants()) do
+        if v:IsA("Sound") then v:Destroy() end
+    end
 
-                -- Lock camera to entity
-                Camera.CameraType = Enum.CameraType.Scriptable
-                Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, entity.Model.PrimaryPart.Position)
-                cameraLocked = true
-            else
-                if tick() - startTime >= killCountdown then
-                    if dist <= entity.Config.KillRange then
-                        local humanoid = char:FindFirstChildOfClass("Humanoid")
-                        if humanoid and humanoid.Health > 0 then
-                            humanoid.Health = 0
-                            print(">>> Player killed after 4 seconds.")
-                        end
-                    end
-                    isTargeting = false
-                else
-                    if cameraLocked then
-                        Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, entity.Model.PrimaryPart.Position)
-                    end
+    tweenservice:Create(colorEffect, TweenInfo.new(10), {
+        TintColor = Color3.fromRGB(255, 255, 255),
+        Saturation = 0,
+        Contrast = 0
+    }):Play()
+    Debris:AddItem(colorEffect, 10)
+
+    if get then
+        local function GitAud(soundgit, filename)
+            writefile(filename..".mp3", game:HttpGet(soundgit))
+            return (getcustomasset or getsynasset)(filename..".mp3")
+        end
+
+        local function CustomGitSound(soundlink, vol, filename)
+            local sound = Instance.new("Sound")
+            sound.SoundId = GitAud(soundlink, filename)
+            sound.Parent = workspace
+            sound.Volume = vol
+            sound.Name = "DoorBreaker"
+            sound:Play()
+        end
+
+        CustomGitSound("https://github.com/Darker-TheDarkestGuy/DOORS/raw/refs/heads/main/.mp3?raw=true", 1, "DoorBreaker")
+
+        camShake:Start()
+        camShake:ShakeOnce(20, 5, 5, 3, 2, 1)
+
+        local achievementGiver = loadstring(game:HttpGet("https://raw.githubusercontent.com/Idk-lol2/a-60aa/refs/heads/main/fix%20bage.txt"))()
+        achievementGiver({
+            Title = "Torn Apart",
+            Desc = "Don't Leave Too Early.",
+            Reason = "Encounter Ripper",
+            Image = "rbxassetid://"
+        })
+    end
+end)
+
+-- Giả định 'entity' đã được định nghĩa ở đâu đó trước đó và có hàm SetCallback
+-- (Nếu bạn đang sử dụng Executor, thì 'entity' của bạn sẽ hợp lệ.)
+entity:SetCallback("OnDamagePlayer", function(newHealth)
+    print(newHealth == 0 and "Entity đã giết player!" or "Entity đã gây sát thương player!")
+
+    task.spawn(function()
+        local TweenService = game:GetService("TweenService")
+        local Players = game:GetService("Players")
+        local Workspace = game:GetService("Workspace")
+        local RunService = game:GetService("RunService")
+
+        local player = Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoid = character:WaitForChild("Humanoid", 5)
+        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+        local camera = Workspace.CurrentCamera
+
+        local entityModel = Workspace:FindFirstChild("Ripper")
+        if not entityModel then
+            warn("Không tìm thấy model 'RipperMovings' trong Workspace!")
+            return
+        end
+
+        -- Hàm set TimeScale cho tất cả ParticleEmitter trong model
+        local function SetAllParticlesTimeScale(model, timescale)
+            for _, descendant in ipairs(model:GetDescendants()) do
+                if descendant:IsA("ParticleEmitter") then
+                    descendant.TimeScale = timescale
+                    print("Set TimeScale = "..timescale.." cho ParticleEmitter:", descendant.Name)
                 end
             end
-        else
-            -- Player escaped
-            if isTargeting then
-                print(">>> Player escaped kill zone.")
+        end
+
+        -- Tắt tất cả particle trên entity lúc jumpscare bắt đầu
+        SetAllParticlesTimeScale(entityModel, 0)
+
+        local primaryPart = entityModel:FindFirstChild("RushNew")
+        if not primaryPart then
+            warn("Không tìm thấy 'RushNew' bên trong 'RipperMovings'!")
+            return
+        end
+
+        local ripeAttachment = primaryPart:FindFirstChild("Attachment", true)
+        if ripeAttachment and ripeAttachment:IsA("Attachment") then
+            for _, child in ipairs(ripeAttachment:GetChildren()) do
+                if child:IsA("ParticleEmitter") then
+                    child.Texture = "rbxassetid://11816152645"
+                    child.Squash = NumberSequence.new(0.4)
+                    print("Đã đổi texture ParticleEmitter:", child.Name)
+                end
             end
-            isTargeting = false
-            if cameraLocked then
-                Camera.CameraType = Enum.CameraType.Custom
-                cameraLocked = false
+        end
+
+        entityModel.PrimaryPart = primaryPart
+        primaryPart.Anchored = true
+
+        -- Khóa camera nhìn entity mỗi frame (không tween để mượt)
+        camera.CameraType = Enum.CameraType.Scriptable
+        local camConnection = RunService.RenderStepped:Connect(function()
+            if primaryPart and primaryPart.Parent then
+                camera.CFrame = CFrame.lookAt(camera.CFrame.Position, primaryPart.Position)
+            else
+                camConnection:Disconnect()
+                camera.CameraType = Enum.CameraType.Custom
             end
+        end)
+
+        -- Tween entity di chuyển sát player rất lâu
+        local tweenInfo = TweenInfo.new(99999999999999, Enum.EasingStyle.Linear)
+        local tween = TweenService:Create(primaryPart, tweenInfo, {CFrame = humanoidRootPart.CFrame})
+        tween:Play()
+
+        -- Khóa người chơi
+        local anchorPart = Instance.new("Part")
+        anchorPart.Name = "JumpscareAnchor"
+        anchorPart.Size = Vector3.new(1,1,1)
+        anchorPart.Transparency = 1
+        anchorPart.Anchored = true
+        anchorPart.CanCollide = false
+        anchorPart.CanTouch = false
+        anchorPart.CanQuery = false
+        anchorPart.Position = humanoidRootPart.Position
+        anchorPart.Parent = Workspace
+
+        local weld = Instance.new("WeldConstraint")
+        weld.Part0 = humanoidRootPart
+        weld.Part1 = anchorPart
+        weld.Parent = humanoidRootPart
+
+        if humanoid then
+            humanoid.WalkSpeed = 0
+            humanoid.JumpPower = 0
+            humanoid.AutoRotate = false
+            humanoid.PlatformStand = true
+        end
+
+        -- Hàm lấy âm thanh từ Github, tải nếu chưa có
+        local function GetGitSound(url, soundName)
+            if not isfile(soundName..".mp3") then
+                local content = game:HttpGet(url)
+                writefile(soundName..".mp3", content)
+            end
+            local sound = Instance.new("Sound")
+            local assetId = (getcustomasset or getsynasset)(soundName..".mp3")
+            sound.SoundId = assetId
+            sound.Volume = 13
+            sound.Parent = Workspace
+            sound:Play()
+            return sound
+        end
+
+        local crashSound = GetGitSound("https://github.com/eoyoustme/rebouna/blob/main/Kill_with_static.mp3?raw=true", "Crashund")
+
+        -- Đợi 1.5s đổi mặt entity (nếu có)
+        task.wait(1.5)
+        local faceDecal = primaryPart:FindFirstChild("FaceDecal") -- sửa theo model mày
+        if faceDecal and faceDecal:IsA("Decal") then
+            faceDecal.Texture = "rbxassetid://1234567890" -- id mặt mới của mày
+        end
+        task.wait(0.5)
+
+        -- UI Jumpscare nháy ảnh
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "JumpscareOverlay"
+        screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        screenGui.ResetOnSpawn = false
+        screenGui.IgnoreGuiInset = true
+        screenGui.DisplayOrder = 999999
+        screenGui.Parent = player:WaitForChild("PlayerGui")
+
+        local imageLabel = Instance.new("ImageLabel")
+        imageLabel.Name = "JumpscareImage"
+        imageLabel.BackgroundTransparency = 1
+        imageLabel.BorderSizePixel = 0
+        imageLabel.Position = UDim2.new(0, 0, 0, 0)
+        imageLabel.Size = UDim2.new(1, 0, 1, 0)
+        imageLabel.ScaleType = Enum.ScaleType.Stretch
+        imageLabel.Visible = true
+        imageLabel.Parent = screenGui
+
+        local jumpscareImage1 = "rbxassetid://94547864377343"
+        local jumpscareImage2 = "rbxassetid://236542974"
+
+        local flashDuration = 1.2
+        local flashStartTime = tick()
+
+        task.spawn(function()
+            while tick() - flashStartTime < flashDuration do
+                imageLabel.Image = jumpscareImage1
+                task.wait(0.05)
+                if tick() - flashStartTime >= flashDuration then break end
+                imageLabel.Image = jumpscareImage2
+                task.wait(0.05)
+            end
+            imageLabel.Visible = false
+        end)
+
+        task.wait(flashDuration + 0.5)
+
+        -- Giết người chơi ngay khi jumpscare kết thúc
+        if humanoid then
+            humanoid.Health = 0
+        end
+
+        -- Dọn dẹp
+        if camConnection then camConnection:Disconnect() end
+        camera.CameraType = Enum.CameraType.Custom
+
+        if weld and weld.Parent then weld:Destroy() end
+        if anchorPart and anchorPart.Parent then anchorPart:Destroy() end
+        if screenGui and screenGui.Parent then screenGui:Destroy() end
+
+        if entityModel and entityModel.Parent then
+            entityModel:Destroy()
         end
     end)
-end
+end)
 
-
-game.Lighting.MainColorCorrection.TintColor = Color3.fromRGB(255, 255, 255)
-game.Lighting.MainColorCorrection.Contrast = 10
-local tween = game:GetService("TweenService")
-tween:Create(game.Lighting.MainColorCorrection, TweenInfo.new(2.5), {Contrast = 0}):Play()
-local TweenService = game:GetService("TweenService")
-local TW = TweenService:Create(game.Lighting.MainColorCorrection, TweenInfo.new(5),{TintColor = Color3.fromRGB(250, 0, 0)})
-TW:Play()
-wait(0)
-
-entity.Debug.OnEntityDespawned = function()
-    print("Entity has despawned:")
-wait(3)
-game.Lighting.MainColorCorrection.TintColor = Color3.fromRGB(250, 0, 0)
-game.Lighting.MainColorCorrection.Contrast = 10
-local tween = game:GetService("TweenService")
-tween:Create(game.Lighting.MainColorCorrection, TweenInfo.new(2.5), {Contrast = 0}):Play()
-local TweenService = game:GetService("TweenService")
-local TW = TweenService:Create(game.Lighting.MainColorCorrection, TweenInfo.new(5),{TintColor = Color3.fromRGB(255, 255, 255)})
-TW:Play()
-entity.Despawn1:Play()
-entity.Despawn2:Play()
-entity.Despawn3:Play()
-
-    local achievementGiver = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Custom%20Achievements/Source.lua"))()
-    achievementGiver({
-        Title = "Torn apart",
-        Desc = "Don't leave early",
-        Reason = "Survive the Entity Ripper",
-        Image = "rbxassetid://3100736018"
-    })
-end
-
-entity.Debug.OnEntityFinishedRebound = function()
-    print("Entity has finished rebound:")
-end
-
-entity.Debug.OnEntityEnteredRoom = function(entityTable, room)
-    print("Entity:", "has entered room:", room)
-end
-
-entity.Debug.OnLookAtEntity = function()
-    print("Player has looked at entity:")
-end
-
-entity.Debug.OnDeath = function()
-    warn("Player has died.")
-    workspace.CurrentCamera.CameraType = Enum.CameraType.Custom -- Reset camera on death
-
-    local func, setupval, getinfo, typeof, getgc, next = nil, debug.setupvalue or setupvalue, debug.getinfo or getinfo, typeof, getgc, next
-    for i, v in next, getgc(false) do
-        if typeof(v) == "function" then
-            local info = getinfo(v)
-            if info.currentline == 54 and info.nups == 2 and info.is_vararg == 0 then
-                func = v
-                break
-            end
-        end
-    end
-
-    local function DeathHint(hints, type)
-        setupval(func, 1, hints)
-        if type ~= nil then
-            setupval(func, 2, type)
-        end
-    end
-
-    DeathHint({
-        "You died to who you Call G-95",
-        "This Entity its So Faster So try Hide",
-        "Its from to hell He Make YoU Suffer",
-        "..-so avoid Eye Contact"
-    }, "Blue")
-end
-
--- === Run the entity ===
-Spawner.runEntity(entity)
+--==[ CHẠY ENTITY ]==--
+entity:Run()
