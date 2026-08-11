@@ -7,13 +7,13 @@ local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/Regul
 local entity = Spawner:Create({
 	Entity = {
 		Name = "Scratch cat",
-		Asset = "https://github.com/RegularVynixu/DOORS-Entity-Spawner-V2/raw/main/Assets/Entities/Rush.rbxm",
+		Asset = "https://github.com/ITheJabissI/Mods/raw/main/Cat.rbxm",
 		HeightOffset = 0
 	},
 	Lights = {
 		Flicker = {
 			Enabled = true,
-			Duration = 1
+			Duration = 2
 		},
 		Shatter = true,
 		Repair = false
@@ -22,20 +22,20 @@ local entity = Spawner:Create({
 		Enabled = true
 	},
 	CameraShake = {
-		Enabled = true,
+		Enabled = false,
 		Range = 100,
 		Values = {1.5, 20, 0.1, 1} -- Magnitude, Roughness, FadeIn, FadeOut
 	},
 	Movement = {
-		Speed = 100,
+		Speed = 150,
 		Delay = 2,
 		Reversed = false
 	},
 	Rebounding = {
 		Enabled = true,
 		Type = "Ambush", -- "Blitz"
-		Min = 1,
-		Max = 1,
+		Min = 5,
+		Max = 5,
 		Delay = 2
 	},
 	Damage = {
@@ -47,7 +47,7 @@ local entity = Spawner:Create({
 		Enabled = true,
 		Range = 40,
 		Resist = false,
-		Break = true
+		Break = false
 	},
 	Death = {
 		Type = "Guiding", -- "Curious"
@@ -60,6 +60,12 @@ local entity = Spawner:Create({
 
 entity:SetCallback("OnSpawned", function()
     print("Entity has spawned")
+    local meow = Instance.new("Sound", workspace)
+    meow.SoundId = "rbxassetid://106544266586869"
+    meow.PlayBackSpeed = 1
+    meow.Volume = 5
+    meow.Looped = false
+    meow:Play()
 end)
 
 entity:SetCallback("OnStartMoving", function()
@@ -101,6 +107,72 @@ end)
 entity:SetCallback("OnDamagePlayer", function(newHealth: number)
 	if newHealth <= 0 then
 		print("Entity has killed the player")
+        -- JUMPSCARE CORE SETUP
+    local players = game:GetService("Players")
+    local localPlayer = players.LocalPlayer
+    local playerGui = localPlayer:WaitForChild("PlayerGui")
+    
+    -- Create ScreenGui Container
+    local sc = Instance.new("ScreenGui")
+    sc.Name = "CatGui"
+    sc.IgnoreGuiInset = true
+    sc.DisplayOrder = 999999
+    sc.Parent = playerGui
+    
+    -- Fullscreen Background for Flashing Lights
+    local flashBg = Instance.new("Frame")
+    flashBg.Size = UDim2.new(1, 0, 1, 0)
+    flashBg.BackgroundColor3 = Color3.new(1, 1, 0)
+    flashBg.BorderSizePixel = 0
+    flashBg.Parent = sc
+
+    
+    -- Play Jumpscare Sound
+    local jumpSound = Instance.new("Sound")
+    jumpSound.SoundId = "rbxassetid://106544266586869"
+    jumpSound.Volume = 5
+    jumpSound.Parent = workspace
+    jumpSound:Play()
+    
+    -- Chaotic Loop Control (Exactly 1 second)
+    local startTime = os.clock()
+    local flashColors = {Color3.new(1, 1, 0), Color3.new(0, 0, 0)} -- White, Red, Black
+    
+    task.spawn(function()
+        while os.clock() - startTime < 1 do
+            -- 1. Rapidly flash background colors
+            flashBg.BackgroundColor3 = flashColors[math.random(1, #flashColors)]
+            
+            -- 2. Create ONE face at a time
+            local img = Instance.new("ImageLabel")
+            img.Image = "rbxassetid://8481648912"
+            img.BackgroundTransparency = 1
+            img.BorderSizePixel = 0
+            img.AnchorPoint = Vector2.new(0.5, 0.5) -- Anchor center for clean scaling/rotation
+            
+            -- Dynamic Random Sizing (Can get extremely massive or tiny/stretched)
+            local randomWidth = math.random(100, 2500)
+            local randomHeight = math.random(100, 2500)
+            img.Size = UDim2.new(0, randomWidth, 0, randomHeight)
+            
+            -- Random Position across screen space
+            img.Position = UDim2.new(math.random(0, 100)/100, 0, math.random(0, 100)/100, 0)
+            
+            -- Completely Random Rotation (0 to 360 degrees)
+            img.Rotation = math.random(0, 360)
+            
+            img.Parent = sc
+            
+            -- Brief delay so it stays on screen solo before disappearing and cycling to the next face
+            task.wait(0.04) 
+            img:Destroy()
+        end
+        
+        -- Clean up remaining GUI assets
+        sc:Destroy()
+        jumpSound:Destroy()
+    end)
+
 	else
 		print("Entity has damaged the player")
 	end
