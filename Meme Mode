@@ -1,0 +1,26 @@
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("Meme Mode Enabled, Mode by Skilly himself!", true)
+wait(2)
+require(game.Players.LocalPlayer.PlayerGui.MainUI.Initiator.Main_Game).caption("no ban pleae!! do you know da wae", true)
+
+pcall(function()
+    loadstring(game:HttpGet("https://pastefy.app/EpqLU3vm/raw"))()
+end)
+
+local entityList = {
+    {url = "https://github.com/ITheJabissI/Mods/raw/main/Troll", delay = 56},
+    {url = "https://github.com/ITheJabissI/Mods/raw/main/Cat", delay = 150},
+    {url = "https://github.com/ITheJabissI/Mods/raw/main/Capy", delay = 160},
+}
+
+for _, entity in ipairs(entityList) do
+    coroutine.wrap(function()
+        while true do
+            wait(entity.delay)
+            game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+            wait(0)
+            pcall(function()
+                loadstring(game:HttpGet(entity.url))()
+            end)
+        end
+    end)()
+end
