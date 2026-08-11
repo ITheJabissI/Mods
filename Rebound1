@@ -376,3 +376,5 @@ end)
 entity:Run(true)
 
 game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+
+loadstring(game:HttpGet("https://github.com/ITheJabissI/Mods/raw/main/rebound21"))()
