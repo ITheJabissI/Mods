@@ -131,7 +131,7 @@ entity:SetCallback("OnDamagePlayer", function(newHealth: number)
 	image.Position = UDim2.new(0.5, 0, 0.5, 0)
 	image.Size = UDim2.new(0, 300, 0, 420)
 	image.BackgroundTransparency = 1
-	image.Image = "rbxassetid://12093393126"
+	image.Image = "rbxassetid://10843382987"
 	image.ZIndex = 11
 	image.Parent = gui
 
