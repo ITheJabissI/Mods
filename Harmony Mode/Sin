@@ -6,8 +6,8 @@ local Spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/Regul
 
 local entity = Spawner:Create({
 	Entity = {
-		Name = "Template Entity",
-		Asset = "https://github.com/RegularVynixu/DOORS-Entity-Spawner-V2/raw/main/Assets/Entities/Rush.rbxm",
+		Name = "Sin",
+		Asset = "https://github.com/ITheJabissI/Mods/raw/main/Harmony%20Mode/Sin.rbxm",
 		HeightOffset = 0
 	},
 	Lights = {
@@ -28,15 +28,15 @@ local entity = Spawner:Create({
 	},
 	Movement = {
 		Speed = 100,
-		Delay = 2,
+		Delay = 4,
 		Reversed = false
 	},
 	Rebounding = {
 		Enabled = true,
 		Type = "Ambush", -- "Blitz"
-		Min = 1,
-		Max = 1,
-		Delay = 2
+		Min = 4,
+		Max = 4,
+		Delay = 1
 	},
 	Damage = {
 		Enabled = true,
@@ -60,6 +60,39 @@ local entity = Spawner:Create({
 
 entity:SetCallback("OnSpawned", function()
     print("Entity has spawned")
+-- Room Light Change
+local TweenService = game:GetService("TweenService")
+local Tweeninfo = TweenInfo.new(5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+local color = {Color = Color3.new(0.5, 0, 0)}
+
+for _, v in pairs(workspace.CurrentRooms[game.ReplicatedStorage.GameData.LatestRoom.Value]:GetDescendants()) do
+    if v:IsA("Light") then
+        TweenService:Create(v, Tweeninfo, color):Play()
+    elseif v.Parent.Name == "LightFixture" then
+        TweenService:Create(v.Parent, Tweeninfo, color):Play()
+    end
+end
+
+-- Camera Shake & Color Correction
+local CameraShaker = require(game.ReplicatedStorage.CameraShaker)
+local camera = workspace.CurrentCamera
+local camShake = CameraShaker.new(Enum.RenderPriority.Camera.Value, function(shakeCf)
+    camera.CFrame = camera.CFrame * shakeCf
+end)
+camShake:Start()
+camShake:ShakeOnce(5, 5, 0, 5.5, 1, 0)
+camShake:Shake(CameraShaker.Presets.Earthquake)
+
+local Debris = game:GetService("Debris")
+local tweenservice = game:GetService("TweenService")
+local colorEffect = Instance.new("ColorCorrectionEffect", game.Lighting)
+
+tweenservice:Create(colorEffect, TweenInfo.new(5), {
+    TintColor = Color3.fromRGB(255, 0, 0),
+    Saturation = -0.7,
+    Contrast = 0.2
+}):Play()
+
 end)
 
 entity:SetCallback("OnStartMoving", function()
@@ -96,6 +129,29 @@ end)
 
 entity:SetCallback("OnDespawned", function()
     print("Entity has despawned")
+-- Room Light Change
+local color = {Color = Color3.new(1, 1, 1)}
+
+for _, v in pairs(workspace.CurrentRooms[game.ReplicatedStorage.GameData.LatestRoom.Value]:GetDescendants()) do
+    if v:IsA("Light") then
+        TweenService:Create(v, Tweeninfo, color):Play()
+    elseif v.Parent.Name == "LightFixture" then
+        TweenService:Create(v.Parent, Tweeninfo, color):Play()
+    end
+end
+
+-- Camera Shake & Color Correction
+
+local Debris = game:GetService("Debris")
+local tweenservice = game:GetService("TweenService")
+local colorEffect = Instance.new("ColorCorrectionEffect", game.Lighting)
+
+tweenservice:Create(colorEffect, TweenInfo.new(5), {
+    TintColor = Color3.fromRGB(255, 255, 255),
+    Saturation = 0,
+    Contrast = 0
+}):Play()
+
 end)
 
 entity:SetCallback("OnDamagePlayer", function(newHealth: number)
