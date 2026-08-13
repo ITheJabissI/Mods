@@ -7,9 +7,9 @@ pcall(function()
 end)
 
 local entityList = {
-    {url = "https://github.com/ITheJabissI/Mods/raw/main/Troll", delay = 56},
+    {url = "https://github.com/ITheJabissI/Mods/raw/main/Troll", delay = 12},
     {url = "https://github.com/ITheJabissI/Mods/raw/main/Cat", delay = 150},
-    {url = "https://github.com/ITheJabissI/Mods/raw/main/Capy", delay = 160},
+    {url = "https://github.com/ITheJabissI/Mods/raw/main/Capy", delay = 10},
 }
 
 for _, entity in ipairs(entityList) do
