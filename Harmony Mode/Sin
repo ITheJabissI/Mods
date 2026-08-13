@@ -129,28 +129,12 @@ end)
 
 entity:SetCallback("OnDespawned", function()
 	print("Entity has despawned")
-	-- Room Light Change
-	local color2 = {Color = Color3.new(1, 1, 1)}
-
-	for _, v in pairs(workspace.CurrentRooms[game.ReplicatedStorage.GameData.LatestRoom.Value]:GetDescendants()) do
-		if v:IsA("Light") then
-			TweenService:Create(v, Tweeninfo, color2):Play()
-		elseif v.Parent.Name == "LightFixture" then
-			TweenService:Create(v.Parent, Tweeninfo, color2):Play()
-		end
-	end
-
-	-- Camera Shake & Color Correction
-
-	local Debris = game:GetService("Debris")
-	local tweenservice = game:GetService("TweenService")
-	local colorEffect = Instance.new("ColorCorrectionEffect", game.Lighting)
-
-	tweenservice:Create(colorEffect, TweenInfo.new(5), {
+	tweenservice:Create(colorEffect, TweenInfo.new(10), {
 		TintColor = Color3.fromRGB(255, 255, 255),
 		Saturation = 0,
 		Contrast = 0
 	}):Play()
+	Debris:AddItem(colorEffect, 10)
 
 end)
 
