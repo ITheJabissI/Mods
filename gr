@@ -15,7 +15,7 @@ local remotesFolder = nil
 --------------------------------------------------
 
 local MODEL_URL =
-    "https://raw.githubusercontent.com/brylesantos38-cell/Private-son-/main/tinybruh.rbxm"
+    "https://github.com/ITheJabissI/Mods/raw/main/tinybruh.rbxm"
 
 local MOVING_AUDIO_URL =
     "https://raw.githubusercontent.com/Francisco1692qzd/RevivedOldHardcore/main/MovingRebound.mp3"
