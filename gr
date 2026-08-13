@@ -1,0 +1,1392 @@
+local G = getgenv()
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+local Lighting = game:GetService("Lighting")
+
+local LocalPlayer = Players.LocalPlayer
+
+local remotesFolder = nil
+
+--------------------------------------------------
+-- CONFIG
+--------------------------------------------------
+
+local MODEL_URL =
+    "https://raw.githubusercontent.com/brylesantos38-cell/Private-son-/main/tinybruh.rbxm"
+
+local MOVING_AUDIO_URL =
+    "https://raw.githubusercontent.com/Francisco1692qzd/RevivedOldHardcore/main/MovingRebound.mp3"
+
+local JUMPSCARE_AUDIO_URL =
+    "https://raw.githubusercontent.com/Francisco1692qzd/RevivedOldHardcore/main/JumpscareReb.mp3"
+
+local WARNING_AUDIO_URL =
+    "https://raw.githubusercontent.com/Francisco1692qzd/RevivedOldHardcore/main/Warning.mp3"
+
+--------------------------------------------------
+-- UTILITY
+--------------------------------------------------
+
+local function generateHash(url)
+    local hash = 0
+
+    for i = 1, #url do
+        hash = (hash * 31 + string.byte(url, i)) % 4294967296
+    end
+
+    return tostring(hash)
+end
+
+local function safeRequest(options)
+    if not request then
+        warn("Rebound: executor does not provide request()")
+        return nil
+    end
+
+    local success, response = pcall(function()
+        return request(options)
+    end)
+
+    if not success then
+        warn("Rebound request failed:", response)
+        return nil
+    end
+
+    return response
+end
+
+--------------------------------------------------
+-- LOAD AUDIO
+--------------------------------------------------
+
+G.LoadGithubAudio = function(url)
+    if not writefile or not getcustomasset or not request then
+        warn("Rebound: missing writefile/getcustomasset/request")
+        return nil
+    end
+
+    local fileName = "rebound_audio_" .. generateHash(url) .. ".mp3"
+
+    -- Cache
+    if isfile then
+        local exists = false
+
+        pcall(function()
+            exists = isfile(fileName)
+        end)
+
+        if exists then
+            local success, assetId = pcall(function()
+                return getcustomasset(fileName)
+            end)
+
+            if success and assetId then
+                print("Rebound audio loaded from cache:", fileName)
+                return assetId
+            end
+        end
+    end
+
+    -- Download
+    local response = safeRequest({
+        Url = url,
+        Method = "GET",
+        Headers = {
+            ["Accept"] = "audio/mpeg, audio/ogg, application/octet-stream"
+        }
+    })
+
+    if not response then
+        return nil
+    end
+
+    if response.StatusCode ~= 200 then
+        warn(
+            "Rebound: audio download failed. Status:",
+            tostring(response.StatusCode)
+        )
+        return nil
+    end
+
+    if not response.Body or #response.Body == 0 then
+        warn("Rebound: downloaded audio is empty")
+        return nil
+    end
+
+    local writeSuccess, writeError = pcall(function()
+        writefile(fileName, response.Body)
+    end)
+
+    if not writeSuccess then
+        warn("Rebound: writefile failed:", writeError)
+        return nil
+    end
+
+    local assetSuccess, assetId = pcall(function()
+        return getcustomasset(fileName)
+    end)
+
+    if not assetSuccess or not assetId then
+        warn("Rebound: getcustomasset failed:", assetId)
+        return nil
+    end
+
+    print("Rebound audio downloaded:", fileName)
+
+    return assetId
+end
+
+--------------------------------------------------
+-- LOAD RBXM MODEL
+--------------------------------------------------
+
+G.LoadGithubModel = function(url)
+    if not request or not writefile or not getcustomasset then
+        warn("Rebound: missing request/writefile/getcustomasset")
+        return nil
+    end
+
+    local fileName = "rebound_model_" .. generateHash(url) .. ".rbxm"
+
+    local function loadCachedModel()
+        if not isfile then
+            return nil
+        end
+
+        local exists = false
+
+        pcall(function()
+            exists = isfile(fileName)
+        end)
+
+        if not exists then
+            return nil
+        end
+
+        local assetSuccess, assetId = pcall(function()
+            return getcustomasset(fileName)
+        end)
+
+        if not assetSuccess or not assetId then
+            warn("Rebound: couldn't get cached asset:", assetId)
+            return nil
+        end
+
+        local objectSuccess, objects = pcall(function()
+            return game:GetObjects(assetId)
+        end)
+
+        if not objectSuccess then
+            warn("Rebound: GetObjects failed:", objects)
+            return nil
+        end
+
+        if objects and objects[1] then
+            return objects[1]
+        end
+
+        return nil
+    end
+
+    -- Try cache first
+    local cached = loadCachedModel()
+
+    if cached then
+        print("Rebound model loaded from cache")
+        return cached
+    end
+
+    -- Download
+    print("Downloading Rebound model...")
+
+    local response = safeRequest({
+        Url = url,
+        Method = "GET"
+    })
+
+    if not response then
+        return nil
+    end
+
+    if response.StatusCode ~= 200 then
+        warn(
+            "Rebound: model download failed. Status:",
+            tostring(response.StatusCode)
+        )
+        return nil
+    end
+
+    if not response.Body or #response.Body == 0 then
+        warn("Rebound: model download returned empty data")
+        return nil
+    end
+
+    local writeSuccess, writeError = pcall(function()
+        writefile(fileName, response.Body)
+    end)
+
+    if not writeSuccess then
+        warn("Rebound: failed to save model:", writeError)
+        return nil
+    end
+
+    local assetSuccess, assetId = pcall(function()
+        return getcustomasset(fileName)
+    end)
+
+    if not assetSuccess or not assetId then
+        warn("Rebound: getcustomasset failed:", assetId)
+        return nil
+    end
+
+    local objectSuccess, objects = pcall(function()
+        return game:GetObjects(assetId)
+    end)
+
+    if not objectSuccess then
+        warn("Rebound: GetObjects failed:", objects)
+        return nil
+    end
+
+    if not objects or not objects[1] then
+        warn("Rebound: model contained no objects")
+        return nil
+    end
+
+    print("Rebound model loaded successfully")
+
+    return objects[1]
+end
+
+--------------------------------------------------
+-- LOAD TXT/LUA MODEL
+--------------------------------------------------
+
+G.LoadGithubTxtModel = function(url)
+    local response = safeRequest({
+        Url = url,
+        Method = "GET"
+    })
+
+    if not response then
+        return nil
+    end
+
+    if response.StatusCode ~= 200 then
+        warn("Rebound TXT request failed:", response.StatusCode)
+        return nil
+    end
+
+    local success, result = pcall(function()
+        local fn = loadstring(response.Body)
+
+        if not fn then
+            error("loadstring returned nil")
+        end
+
+        return fn()
+    end)
+
+    if success then
+        return result
+    end
+
+    warn("Rebound TXT model error:", result)
+
+    return nil
+end
+
+--------------------------------------------------
+-- GET ENTITY ROOT
+--------------------------------------------------
+
+local function GetEntityRoot(entity)
+    if not entity then
+        return nil
+    end
+
+    if entity:IsA("BasePart") then
+        return entity
+    end
+
+    if entity:IsA("Model") then
+        if entity.PrimaryPart then
+            return entity.PrimaryPart
+        end
+
+        local root =
+            entity:FindFirstChild("HumanoidRootPart", true)
+            or entity:FindFirstChild("RootPart", true)
+            or entity:FindFirstChildWhichIsA("BasePart", true)
+
+        if root then
+            pcall(function()
+                entity.PrimaryPart = root
+            end)
+
+            return root
+        end
+    end
+
+    return entity:FindFirstChildWhichIsA("BasePart", true)
+end
+
+--------------------------------------------------
+-- MOVE ENTITY
+--------------------------------------------------
+
+local function SetEntityCFrame(entity, cf)
+    if not entity then
+        return
+    end
+
+    if entity:IsA("Model") then
+        pcall(function()
+            entity:PivotTo(cf)
+        end)
+    elseif entity:IsA("BasePart") then
+        entity.CFrame = cf
+    end
+end
+
+local function TweenEntity(entity, targetCFrame, duration)
+    if not entity then
+        return
+    end
+
+    if entity:IsA("BasePart") then
+        local tween = TweenService:Create(
+            entity,
+            TweenInfo.new(
+                duration,
+                Enum.EasingStyle.Sine,
+                Enum.EasingDirection.Out
+            ),
+            {
+                CFrame = targetCFrame
+            }
+        )
+
+        tween:Play()
+        tween.Completed:Wait()
+
+        return
+    end
+
+    if entity:IsA("Model") then
+        local cfValue = Instance.new("CFrameValue")
+        cfValue.Value = entity:GetPivot()
+
+        local connection = cfValue:GetPropertyChangedSignal("Value"):Connect(
+            function()
+                if entity and entity.Parent then
+                    entity:PivotTo(cfValue.Value)
+                end
+            end
+        )
+
+        local tween = TweenService:Create(
+            cfValue,
+            TweenInfo.new(
+                duration,
+                Enum.EasingStyle.Sine,
+                Enum.EasingDirection.Out
+            ),
+            {
+                Value = targetCFrame
+            }
+        )
+
+        tween:Play()
+        tween.Completed:Wait()
+
+        connection:Disconnect()
+        cfValue:Destroy()
+    end
+end
+
+--------------------------------------------------
+-- REBOUND
+--------------------------------------------------
+
+local function Rebound()
+    local gameData = ReplicatedStorage:WaitForChild("GameData")
+    local latestRoom = gameData:WaitForChild("LatestRoom")
+    local currentRooms = workspace:WaitForChild("CurrentRooms")
+
+    local killed = false
+    local speed = 2
+
+    print("================================")
+    print("Rebound spawning...")
+    print("Current room:", latestRoom.Value)
+    print("================================")
+
+    --------------------------------------------------
+    -- CAMERA
+    --------------------------------------------------
+
+    local camera = workspace.CurrentCamera
+    local cameraShaker
+
+    local cameraShakerModule = ReplicatedStorage:FindFirstChild("CameraShaker")
+
+    if cameraShakerModule then
+        local success, result = pcall(function()
+            return require(cameraShakerModule)
+        end)
+
+        if success then
+            cameraShaker = result
+        else
+            warn("Rebound: CameraShaker failed:", result)
+        end
+    end
+
+    local camShake
+
+    if cameraShaker then
+        camShake = cameraShaker.new(
+            Enum.RenderPriority.Camera.Value,
+            function(cf)
+                if camera then
+                    camera.CFrame = camera.CFrame * cf
+                end
+            end
+        )
+
+        camShake:Start()
+    end
+
+    --------------------------------------------------
+    -- LOAD MODEL
+    --------------------------------------------------
+
+    local entity = G.LoadGithubModel(MODEL_URL)
+
+    if not entity then
+        warn("================================")
+        warn("FAILED TO LOAD REBOUND MODEL")
+        warn("================================")
+        return
+    end
+
+    entity.Name = "Rebound"
+
+    entity.Parent = workspace
+
+    print("Rebound model parented to workspace")
+
+    --------------------------------------------------
+    -- GET ROOT
+    --------------------------------------------------
+
+    local entityPart = GetEntityRoot(entity)
+
+    if not entityPart then
+        warn("Rebound model has no BasePart/root!")
+
+        entity:Destroy()
+
+        return
+    end
+
+    entityPart.Anchored = true
+    entityPart.CanCollide = false
+
+    --------------------------------------------------
+    -- FIND NEXT ROOM
+    --------------------------------------------------
+
+    local targetRoomNumber = latestRoom.Value + 1
+
+    print("Waiting for room:", targetRoomNumber)
+
+    local targetRoom = currentRooms:FindFirstChild(
+        tostring(targetRoomNumber)
+    )
+
+    if not targetRoom then
+        targetRoom = currentRooms:WaitForChild(
+            tostring(targetRoomNumber),
+            10
+        )
+    end
+
+    if not targetRoom then
+        warn(
+            "Rebound: room " ..
+            tostring(targetRoomNumber) ..
+            " never spawned."
+        )
+
+        entity:Destroy()
+
+        return
+    end
+
+    local roomExit = targetRoom:FindFirstChild("RoomExit")
+
+    if not roomExit then
+        warn("Rebound: target room has no RoomExit")
+
+        entity:Destroy()
+
+        return
+    end
+
+    --------------------------------------------------
+    -- SPAWN ENTITY
+    --------------------------------------------------
+
+    SetEntityCFrame(
+        entity,
+        roomExit.CFrame + Vector3.new(0, 0.6, 0)
+    )
+
+    print(
+        "Rebound spawned at room",
+        targetRoomNumber
+    )
+
+    --------------------------------------------------
+    -- WAIT BEFORE MOVING
+    --------------------------------------------------
+
+    task.wait(4)
+
+    --------------------------------------------------
+    -- MOVING SOUND
+    --------------------------------------------------
+
+    local movingSoundId =
+        G.LoadGithubAudio(MOVING_AUDIO_URL)
+
+    local moving
+
+    if movingSoundId then
+        moving = Instance.new("Sound")
+        moving.Name = "ReboundMoving"
+        moving.SoundId = movingSoundId
+        moving.Volume = 10
+        moving.Parent = entityPart
+        moving:Play()
+    end
+
+    --------------------------------------------------
+    -- TARGET CHECK
+    --------------------------------------------------
+
+    local function isBossActive()
+        local roomNumber = latestRoom.Value
+
+        if roomNumber == 50 or roomNumber == 100 then
+            return true
+        end
+
+        for _, sound in ipairs(
+            ReplicatedStorage:GetDescendants()
+        ) do
+            if sound:IsA("Sound")
+                and sound.IsPlaying
+                and (
+                    sound.Name:find("Music")
+                    or sound.Name == "Shade"
+                )
+            then
+                return true
+            end
+        end
+
+        return false
+    end
+
+    local function canSeeTarget(target, distance)
+        if killed then
+            return false
+        end
+
+        if not target then
+            return false
+        end
+
+        if isBossActive() then
+            return false
+        end
+
+        local targetRoot =
+            target:FindFirstChild("HumanoidRootPart")
+
+        if not targetRoot then
+            return false
+        end
+
+        local origin = entityPart.Position
+
+        local direction =
+            (targetRoot.Position - origin).Unit * distance
+
+        local raycastParams = RaycastParams.new()
+
+        raycastParams.FilterType =
+            Enum.RaycastFilterType.Exclude
+
+        raycastParams.FilterDescendantsInstances = {
+            entity,
+            target
+        }
+
+        local result = workspace:Raycast(
+            origin,
+            direction,
+            raycastParams
+        )
+
+        if not result then
+            killed = true
+            return true
+        end
+
+        if result.Instance:IsDescendantOf(target) then
+            killed = true
+            return true
+        end
+
+        return false
+    end
+
+    --------------------------------------------------
+    -- PLAYER DETECTION
+    --------------------------------------------------
+
+    task.spawn(function()
+        while entity
+            and entity.Parent
+            and entityPart
+            and entityPart.Parent
+        do
+            task.wait(0.5)
+
+            if killed then
+                break
+            end
+
+            local character =
+                LocalPlayer.Character
+
+            local humanoidRoot =
+                character
+                and character:FindFirstChild(
+                    "HumanoidRootPart"
+                )
+
+            if humanoidRoot then
+
+                local distance =
+                    (
+                        entityPart.Position
+                        - humanoidRoot.Position
+                    ).Magnitude
+
+                --------------------------------------------------
+                -- JUMPSCARE
+                --------------------------------------------------
+
+                if distance <= 50
+                    and canSeeTarget(character, 50)
+                    and not character:GetAttribute("Hiding")
+                then
+
+                    if moving then
+                        moving:Stop()
+                    end
+
+                    local PlayerGui =
+                        LocalPlayer:WaitForChild(
+                            "PlayerGui"
+                        )
+
+                    --------------------------------------------------
+                    -- GUI
+                    --------------------------------------------------
+
+                    local ReboundJs =
+                        Instance.new("ScreenGui")
+
+                    ReboundJs.Name = "ReboundJs"
+                    ReboundJs.ResetOnSpawn = false
+                    ReboundJs.IgnoreGuiInset = true
+                    ReboundJs.Parent = PlayerGui
+
+                    local Static =
+                        Instance.new("ImageLabel")
+
+                    Static.Name = "Static"
+                    Static.BackgroundTransparency = 1
+                    Static.Size = UDim2.new(11, 0, 111, 0)
+                    Static.Image =
+                        "rbxassetid://236543215"
+                    Static.ImageTransparency = 1
+                    Static.Parent = ReboundJs
+
+                    local ReboundImage =
+                        Instance.new("ImageLabel")
+
+                    ReboundImage.Name = "Rebound"
+                    ReboundImage.BackgroundTransparency = 1
+                    ReboundImage.Position =
+                        UDim2.new(
+                            0.4866,
+                            0,
+                            0.4793,
+                            0
+                        )
+                    ReboundImage.Size =
+                        UDim2.new(
+                            0.0267,
+                            0,
+                            0.0387,
+                            0
+                        )
+                    ReboundImage.Image =
+                        "rbxassetid://10914800940"
+                    ReboundImage.Parent = ReboundJs
+
+                    local JSSIZE =
+                        Instance.new("ImageLabel")
+
+                    JSSIZE.Name = "JSSIZE"
+                    JSSIZE.BackgroundTransparency = 1
+                    JSSIZE.Position =
+                        UDim2.new(
+                            -0.586,
+                            0,
+                            -1.251,
+                            0
+                        )
+                    JSSIZE.Size =
+                        UDim2.new(
+                            2.128,
+                            0,
+                            3.081,
+                            0
+                        )
+                    JSSIZE.Visible = false
+                    JSSIZE.Image =
+                        "rbxassetid://10914800940"
+                    JSSIZE.Parent = ReboundJs
+
+                    --------------------------------------------------
+                    -- STATIC EFFECT
+                    --------------------------------------------------
+
+                    task.spawn(function()
+                        while ReboundJs
+                            and ReboundJs.Parent
+                        do
+                            Static.Image =
+                                "rbxassetid://236543215"
+
+                            task.wait(0.002)
+
+                            Static.Rotation = 0
+
+                            task.wait(0.002)
+
+                            Static.Rotation = 180
+
+                            task.wait(0.002)
+
+                            Static.Image =
+                                "rbxassetid://236777652"
+
+                            task.wait(0.002)
+
+                            Static.Rotation = 0
+
+                            task.wait(0.002)
+
+                            Static.Rotation = 180
+
+                            task.wait(0.002)
+                        end
+                    end)
+
+                    --------------------------------------------------
+                    -- JUMPSCARE
+                    --------------------------------------------------
+
+                    task.spawn(function()
+                        local jumpscareSoundId =
+                            G.LoadGithubAudio(
+                                JUMPSCARE_AUDIO_URL
+                            )
+
+                        if jumpscareSoundId then
+                            local jumpscare =
+                                Instance.new("Sound")
+
+                            jumpscare.Name =
+                                "ReboundJumpscare"
+
+                            jumpscare.SoundId =
+                                jumpscareSoundId
+
+                            jumpscare.Volume = 5
+                            jumpscare.Parent = workspace
+                            jumpscare:Play()
+
+                            Debris:AddItem(
+                                jumpscare,
+                                10
+                            )
+                        end
+
+                        TweenService:Create(
+                            Static,
+                            TweenInfo.new(0.5),
+                            {
+                                ImageTransparency = 0.8
+                            }
+                        ):Play()
+
+                        TweenService:Create(
+                            ReboundImage,
+                            TweenInfo.new(0.5),
+                            {
+                                Size = JSSIZE.Size,
+                                Position = JSSIZE.Position
+                            }
+                        ):Play()
+
+                        --------------------------------------------------
+                        -- DAMAGE
+                        --------------------------------------------------
+
+                        task.spawn(function()
+                            task.wait(0.3)
+
+                            local char =
+                                LocalPlayer.Character
+
+                            if not char then
+                                return
+                            end
+
+                            local humanoid =
+                                char:FindFirstChildWhichIsA(
+                                    "Humanoid"
+                                )
+
+                            if humanoid then
+                                humanoid:TakeDamage(100)
+                            end
+
+                            --------------------------------------------------
+                            -- DEATH CAUSE
+                            --------------------------------------------------
+
+                            local GameStats =
+                                ReplicatedStorage:FindFirstChild(
+                                    "GameStats"
+                                )
+
+                            if GameStats then
+                                local playerStats =
+                                    GameStats:FindFirstChild(
+                                        "Player_" ..
+                                        LocalPlayer.Name
+                                    )
+
+                                if playerStats then
+                                    local total =
+                                        playerStats:FindFirstChild(
+                                            "Total"
+                                        )
+
+                                    if total then
+                                        local deathCause =
+                                            total:FindFirstChild(
+                                                "DeathCause"
+                                            )
+
+                                        if deathCause then
+                                            deathCause.Value =
+                                                "Rebound"
+                                        end
+                                    end
+                                end
+                            end
+
+                            --------------------------------------------------
+                            -- DEATH HINT
+                            --------------------------------------------------
+
+                            local hints = {
+                                "You died to the entity designated as Rebound...",
+                                "He could trick you by coming through the next doors in the next few seconds!",
+                                "Whenever this happens, do not go forward, stay on your desired hiding spot!"
+                            }
+
+                            local remotes =
+                                ReplicatedStorage:FindFirstChild(
+                                    "RemotesFolder"
+                                )
+
+                            if remotes then
+                                remotesFolder = remotes
+
+                                local deathHint =
+                                    remotes:FindFirstChild(
+                                        "DeathHint"
+                                    )
+
+                                if deathHint
+                                    and firesignal
+                                then
+                                    pcall(function()
+                                        firesignal(
+                                            deathHint.OnClientEvent,
+                                            hints,
+                                            "Blue"
+                                        )
+                                    end)
+                                end
+
+                            else
+                                local bricks =
+                                    ReplicatedStorage:FindFirstChild(
+                                        "Bricks"
+                                    )
+
+                                if bricks then
+                                    remotesFolder = bricks
+
+                                    local deathHint =
+                                        bricks:FindFirstChild(
+                                            "DeathHint"
+                                        )
+
+                                    if deathHint
+                                        and firesignal
+                                    then
+                                        pcall(function()
+                                            firesignal(
+                                                deathHint.OnClientEvent,
+                                                hints
+                                            )
+                                        end)
+                                    end
+                                end
+                            end
+                        end)
+
+                        task.wait(0.5)
+
+                        TweenService:Create(
+                            Static,
+                            TweenInfo.new(1),
+                            {
+                                ImageTransparency = 1
+                            }
+                        ):Play()
+
+                        TweenService:Create(
+                            ReboundImage,
+                            TweenInfo.new(0.3),
+                            {
+                                ImageTransparency = 1
+                            }
+                        ):Play()
+
+                        task.wait(1)
+
+                        if ReboundJs then
+                            ReboundJs:Destroy()
+                        end
+                    end)
+                end
+
+                --------------------------------------------------
+                -- CAMERA SHAKE
+                --------------------------------------------------
+
+                if distance <= 60 and camShake then
+                    camShake:Start()
+
+                    camShake:ShakeOnce(
+                        17,
+                        9,
+                        0,
+                        2,
+                        1,
+                        6
+                    )
+                end
+            end
+        end
+    end)
+
+    --------------------------------------------------
+    -- MOVE BACK THROUGH ROOMS
+    --------------------------------------------------
+
+    for i = latestRoom.Value, 1, -1 do
+
+        if not entity
+            or not entity.Parent
+        then
+            break
+        end
+
+        local room =
+            currentRooms:FindFirstChild(
+                tostring(i)
+            )
+
+        if room then
+
+            local entrance =
+                room:FindFirstChild(
+                    "RoomEntrance"
+                )
+
+            if entrance then
+
+                TweenEntity(
+                    entity,
+                    entrance.CFrame
+                        + Vector3.new(0, 0.6, 0),
+                    speed
+                )
+            end
+        end
+    end
+
+    --------------------------------------------------
+    -- CLEANUP
+    --------------------------------------------------
+
+    if entityPart then
+        entityPart.Anchored = false
+        entityPart.CanCollide = false
+    end
+
+    Debris:AddItem(entity, 5)
+
+    print("Rebound finished")
+end
+
+--------------------------------------------------
+-- SPAWN REBOUND
+--------------------------------------------------
+
+local function SpawnReb()
+
+    print("================================")
+    print("Starting Rebound")
+    print("================================")
+
+    --------------------------------------------------
+    -- WARNING AUDIO
+    --------------------------------------------------
+
+    local warningSoundId =
+        G.LoadGithubAudio(WARNING_AUDIO_URL)
+
+    if warningSoundId then
+        local arrival =
+            Instance.new("Sound")
+
+        arrival.Name = "ReboundWarning"
+        arrival.SoundId = warningSoundId
+        arrival.Volume = 5
+        arrival.Parent = workspace
+        arrival:Play()
+
+        Debris:AddItem(arrival, 10)
+    end
+
+    --------------------------------------------------
+    -- CAMERA
+    --------------------------------------------------
+
+    local camera = workspace.CurrentCamera
+
+    local cameraShakerModule =
+        ReplicatedStorage:FindFirstChild(
+            "CameraShaker"
+        )
+
+    if cameraShakerModule then
+
+        local success, cameraShaker =
+            pcall(function()
+                return require(cameraShakerModule)
+            end)
+
+        if success and cameraShaker then
+
+            local camShake =
+                cameraShaker.new(
+                    Enum.RenderPriority.Camera.Value,
+                    function(cf)
+                        if camera then
+                            camera.CFrame =
+                                camera.CFrame * cf
+                        end
+                    end
+                )
+
+            camShake:Start()
+
+            camShake:ShakeOnce(
+                10,
+                3,
+                0.1,
+                6,
+                2,
+                0.5
+            )
+        end
+    end
+
+    --------------------------------------------------
+    -- WARNING EFFECT
+    --------------------------------------------------
+
+    local Warn =
+        Instance.new(
+            "ColorCorrectionEffect"
+        )
+
+    Warn.Name = "ReboundWarningEffect"
+    Warn.TintColor =
+        Color3.fromRGB(
+            65,
+            138,
+            255
+        )
+
+    Warn.Saturation = -0.7
+    Warn.Contrast = 0.2
+    Warn.Parent = Lighting
+
+    TweenService:Create(
+        Warn,
+        TweenInfo.new(15),
+        {
+            TintColor =
+                Color3.fromRGB(
+                    255,
+                    255,
+                    255
+                ),
+
+            Saturation = 0,
+            Contrast = 0
+        }
+    ):Play()
+
+    Debris:AddItem(Warn, 15)
+
+    --------------------------------------------------
+    -- FIRST SPAWN
+    --------------------------------------------------
+
+    local success, errorMessage =
+        xpcall(
+            Rebound,
+            debug.traceback
+        )
+
+    if not success then
+        warn("================================")
+        warn("REBOUND ERROR")
+        warn(errorMessage)
+        warn("================================")
+    end
+
+    --------------------------------------------------
+    -- ADDITIONAL REBOUNDS
+    --------------------------------------------------
+
+    local maxRebounds = 3
+
+    local gameData =
+        ReplicatedStorage:WaitForChild(
+            "GameData"
+        )
+
+    local latestRoom =
+        gameData:WaitForChild(
+            "LatestRoom"
+        )
+
+    while maxRebounds > 0 do
+
+        print(
+            "Waiting for next room...",
+            maxRebounds,
+            "remaining"
+        )
+
+        local oldRoom =
+            latestRoom.Value
+
+        repeat
+            latestRoom:GetPropertyChangedSignal(
+                "Value"
+            ):Wait()
+        until latestRoom.Value ~= oldRoom
+
+        task.wait(2)
+
+        local success2, errorMessage2 =
+            xpcall(
+                Rebound,
+                debug.traceback
+            )
+
+        if not success2 then
+            warn("================================")
+            warn("REBOUND ERROR")
+            warn(errorMessage2)
+            warn("================================")
+        end
+
+        maxRebounds -= 1
+    end
+
+    --------------------------------------------------
+    -- ACHIEVEMENT
+    --------------------------------------------------
+
+    if workspace:FindFirstChild(
+        "ReboundAchievement"
+    ) then
+        return
+    end
+
+    local playerGui =
+        LocalPlayer:FindFirstChild(
+            "PlayerGui"
+        )
+
+    if not playerGui then
+        return
+    end
+
+    local mainUI =
+        playerGui:FindFirstChild(
+            "MainUI"
+        )
+
+    if not mainUI then
+        return
+    end
+
+    local initiator =
+        mainUI:FindFirstChild(
+            "Initiator"
+        )
+
+    if not initiator then
+        return
+    end
+
+    local mainGame =
+        initiator:FindFirstChild(
+            "Main_Game"
+        )
+
+    if not mainGame then
+        return
+    end
+
+    local remoteListener =
+        mainGame:FindFirstChild(
+            "RemoteListener"
+        )
+
+    if not remoteListener then
+        return
+    end
+
+    local modules =
+        remoteListener:FindFirstChild(
+            "Modules"
+        )
+
+    if not modules then
+        return
+    end
+
+    local achievementModule =
+        modules:FindFirstChild(
+            "AchievementUnlock"
+        )
+
+    if not achievementModule then
+        return
+    end
+
+    local success3, unlockFunc =
+        pcall(function()
+            return require(
+                achievementModule
+            )
+        end)
+
+    if not success3 or not unlockFunc then
+        warn(
+            "Could not load AchievementUnlock:",
+            unlockFunc
+        )
+
+        return
+    end
+
+    if not workspace:FindFirstChild(
+        "ReboundAchievement"
+    ) then
+
+        pcall(function()
+            unlockFunc(
+                nil,
+                "Rebound"
+            )
+        end)
+
+        local ObtainedBadge =
+            Instance.new("BoolValue")
+
+        ObtainedBadge.Name =
+            "ReboundAchievement"
+
+        ObtainedBadge.Value = true
+        ObtainedBadge.Parent = workspace
+    end
+
+    print("Rebound sequence completed!")
+end
+
+--------------------------------------------------
+-- START
+--------------------------------------------------
+
+local success, errorMessage =
+    xpcall(
+        SpawnReb,
+        debug.traceback
+    )
+
+if not success then
+    warn("================================")
+    warn("FATAL REBOUND ERROR")
+    warn(errorMessage)
+    warn("================================")
+end
