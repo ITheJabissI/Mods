@@ -211,12 +211,10 @@ entity:SetCallback("OnDespawning", function()
         CameraShaker.Presets.Earthquake
     )
 
-    -- Open current door
     pcall(function()
         currentRoom.Door.ClientOpen:FireServer()
     end)
 
-    -- Stop/destroy Ripper sounds
     local ripper = workspace:FindFirstChild("Ripper")
 
     if ripper then
@@ -228,7 +226,6 @@ entity:SetCallback("OnDespawning", function()
         end
     end
 
-    -- Restore lighting
     TweenService:Create(
         colorEffect,
         TweenInfo.new(10),
@@ -241,7 +238,6 @@ entity:SetCallback("OnDespawning", function()
 
     Debris:AddItem(colorEffect, 10)
 
-    -- Door breaker sound
     local doorSound = Instance.new("Sound")
     doorSound.SoundId = "rbxassetid://1837829565"
     doorSound.Volume = 6
@@ -262,7 +258,6 @@ entity:SetCallback("OnDespawning", function()
         1
     )
 
-    -- Achievement
     pcall(function()
         local achievementGiver = loadstring(
             game:HttpGet(
@@ -303,7 +298,10 @@ entity:SetCallback("OnDamagePlayer", function(newHealth)
             return
         end
 
-        -- Find Ripper
+        --==================================================
+        -- FIND RIPPER
+        --==================================================
+
         local entityModel =
             workspace:FindFirstChild("Ripper")
 
@@ -329,7 +327,6 @@ entity:SetCallback("OnDamagePlayer", function(newHealth)
             end
         end
 
-        -- Freeze particles
         SetAllParticlesTimeScale(
             entityModel,
             0
@@ -473,7 +470,6 @@ entity:SetCallback("OnDamagePlayer", function(newHealth)
 
         task.wait(1.5)
 
-        -- Search the ENTIRE model instead of only primaryPart
         local faceDecal =
             entityModel:FindFirstChild(
                 "FaceDecal",
@@ -569,8 +565,33 @@ entity:SetCallback("OnDamagePlayer", function(newHealth)
         -- KILL PLAYER
         --==================================================
 
-        if humanoid then
+        if humanoid and humanoid.Parent then
+
+            humanoid.PlatformStand = false
+            humanoid.AutoRotate = true
+
             humanoid.Health = 0
+            humanoid:ChangeState(
+                Enum.HumanoidStateType.Dead
+            )
+
+            task.spawn(function()
+
+                for i = 1, 10 do
+
+                    if humanoid
+                        and humanoid.Parent then
+
+                        humanoid.Health = 0
+
+                        humanoid:ChangeState(
+                            Enum.HumanoidStateType.Dead
+                        )
+                    end
+
+                    task.wait(0.1)
+                end
+            end)
         end
 
         --==================================================
@@ -602,6 +623,7 @@ entity:SetCallback("OnDamagePlayer", function(newHealth)
 
         if entityModel
             and entityModel.Parent then
+
             entityModel:Destroy()
         end
 
