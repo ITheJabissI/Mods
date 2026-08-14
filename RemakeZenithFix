@@ -28,7 +28,7 @@ text.Font = Enum.Font.Code
 text.TextXAlignment = Enum.TextXAlignment.Left
 text.TextYAlignment = Enum.TextYAlignment.Top
 text.TextWrapped = false
-text.Text = 'Mod Created By "Zenith"\nOMG he has a lot of names\nOG made by Noonie, Ping, and Others'
+text.Text = 'Mod Created By "Zenith"\nomg he has a lot of names\nOG made by Noonie, Ping, and Others'
 text.Parent = frame
 
 -- Sprint Bar
