@@ -134,6 +134,11 @@ sound.PlaybackSpeed = 1
 sound.Parent = s
 sound:Play()
 
+-- Turn face OFF initially
+SetFaceEnabled(false)
+
+task.wait(5)
+
 -- ❄️ Frost effect
 local frost = Instance.new("ColorCorrectionEffect")
 frost.Parent = game.Lighting
@@ -147,11 +152,6 @@ tweenservice:Create(
         Contrast = 0.2
     }
 ):Play()
-
--- Turn face OFF initially
-SetFaceEnabled(false)
-
-task.wait(8)
 
 -- Turn face ON
 SetFaceEnabled(true)
