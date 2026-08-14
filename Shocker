@@ -7,14 +7,45 @@ local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 
+local GITHUB_URL = "https://github.com/ITheJabissI/Mods/raw/main/ShockerRemake.rbxm"
+local FILE_NAME = "ShockerRemake.rbxm"
+
+local function loadShocker()
+    if not isfile(FILE_NAME) then
+        writefile(FILE_NAME, game:HttpGet(GITHUB_URL))
+    end
+
+    local customAsset = getcustomasset or getsynasset
+
+    if not customAsset then
+        error("Your executor does not support getcustomasset/getsynasset.")
+    end
+
+    local assetPath = customAsset(FILE_NAME)
+    local objects = game:GetObjects(assetPath)
+
+    if #objects == 0 then
+        error("Failed to load ShockerRemake.rbxm")
+    end
+
+    return objects[1]
+end
+
 local function spawnShocker()
-    local shockerModel = game:GetObjects("rbxassetid://77812013098484")[1]
+    local shockerModel = loadShocker()
     local camera = Workspace.CurrentCamera
 
-    local rootPart = shockerModel:FindFirstChild("HumanoidRootPart") or shockerModel:FindFirstChildWhichIsA("Part")
+    local rootPart =
+        shockerModel:FindFirstChild("HumanoidRootPart", true)
+        or shockerModel:FindFirstChildWhichIsA("BasePart", true)
+
+    if not rootPart then
+        error("Shocker model has no BasePart.")
+    end
+
     shockerModel.PrimaryPart = rootPart
-    shockerModel:SetPrimaryPartCFrame(camera.CFrame * CFrame.new(0, 0, -7))
     shockerModel.Parent = Workspace
+    shockerModel:PivotTo(camera.CFrame * CFrame.new(0, 0, -7))
 
     local oogaBoogaaPart = shockerModel:WaitForChild("OOGA BOOGAAAA")
     local horrorScream = oogaBoogaaPart:WaitForChild("HORROR SCREAM 15")
@@ -32,23 +63,36 @@ local function spawnShocker()
         oogaBoogaaPart.CanCollide = false
 
         task.delay(1.2, function()
-            if shockerModel then
+            if shockerModel and shockerModel.Parent then
                 shockerModel:Destroy()
             end
         end)
     end
 
-    local connection
-    connection = game:GetService("RunService").RenderStepped:Connect(function()
-        if not character or not character:FindFirstChild("HumanoidRootPart") then return end
-        if hasTriggered then connection:Disconnect() return end
+    local RunService = game:GetService("RunService")
 
-        local directionToShocker = (oogaBoogaaPart.Position - camera.CFrame.Position).Unit
+    local connection
+    connection = RunService.RenderStepped:Connect(function()
+        if not character or not character:FindFirstChild("HumanoidRootPart") then
+            return
+        end
+
+        if hasTriggered then
+            connection:Disconnect()
+            return
+        end
+
+        local offset = oogaBoogaaPart.Position - camera.CFrame.Position
+
+        if offset.Magnitude == 0 then
+            return
+        end
+
+        local directionToShocker = offset.Unit
         local playerLookVector = camera.CFrame.LookVector
         local dot = directionToShocker:Dot(playerLookVector)
 
         if dot > 0.85 then
-            -- Đang nhìn
             if not lookStart then
                 lookStart = tick()
             elseif tick() - lookStart >= lookDuration then
@@ -56,43 +100,79 @@ local function spawnShocker()
                 connection:Disconnect()
 
                 horrorScream:Play()
-                if boneSound then boneSound:Play() end
-                humanoid:TakeDamage(70)
 
-                -- Tween lao tới player
-                local targetPos = character.HumanoidRootPart.Position + Vector3.new(0, 2, 0)
-                local tweenInfo = TweenInfo.new(3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-                local tween = TweenService:Create(oogaBoogaaPart, tweenInfo, {Position = targetPos})
+                humanoid:TakeDamage(30)
+
+                local targetPos =
+                    character.HumanoidRootPart.Position
+                    + Vector3.new(0, 2, 0)
+
+                local tweenInfo = TweenInfo.new(
+                    1.2,
+                    Enum.EasingStyle.Exponential,
+                    Enum.EasingDirection.Out
+                )
+
+                local tween = TweenService:Create(
+                    oogaBoogaaPart,
+                    tweenInfo,
+                    {
+                        Position = targetPos
+                    }
+                )
+
                 tween:Play()
 
                 tween.Completed:Connect(function()
-                    -- Sau khi lao tới thì rơi xuống đất
                     fallToGround()
                 end)
 
-                -- Death message
-                ReplicatedStorage.GameStats["Player_".. player.Name].Total.DeathCause.Value = "Nightmare Shocker"
-                firesignal(ReplicatedStorage.RemotesFolder.DeathHint.OnClientEvent, {
-                    "You died to who you call Shocker...",
-                    "Don't look at it or it stuns you!"
-                }, "Blue")
+                local gameStats =
+                    ReplicatedStorage:FindFirstChild("GameStats")
+
+                local playerStats =
+                    gameStats
+                    and gameStats:FindFirstChild("Player_" .. player.Name)
+
+                if playerStats
+                    and playerStats:FindFirstChild("Total")
+                    and playerStats.Total:FindFirstChild("DeathCause") then
+
+                    playerStats.Total.DeathCause.Value = "Shocker"
+                end
+
+                local remotesFolder =
+                    ReplicatedStorage:FindFirstChild("RemotesFolder")
+
+                local deathHint =
+                    remotesFolder
+                    and remotesFolder:FindFirstChild("DeathHint")
+
+                if deathHint then
+                    firesignal(deathHint.OnClientEvent, {
+                        "You died to who you call Shocker...",
+                        "Don't look at it or it stuns you!"
+                    }, "Blue")
+                end
             end
         else
-            -- Không nhìn → ngã luôn
             connection:Disconnect()
             fallToGround()
         end
     end)
 
-    -- Dự phòng
     task.delay(5, function()
         if not hasTriggered and not hasFallen then
             fallToGround()
         end
     end)
 
-    -- Achievement
-    local achievementGiver = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Custom%20Achievements/Source.lua"))()
+    local achievementGiver = loadstring(
+        game:HttpGet(
+            "https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Custom%20Achievements/Source.lua"
+        )
+    )()
+
     achievementGiver({
         Title = "Shocking Experience",
         Desc = "Look at me.",
