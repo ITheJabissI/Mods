@@ -137,7 +137,7 @@ sound:Play()
 -- Turn face OFF initially
 SetFaceEnabled(false)
 
-task.wait(5)
+task.wait(8)
 
 -- ❄️ Frost effect
 local frost = Instance.new("ColorCorrectionEffect")
