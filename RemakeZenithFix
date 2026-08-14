@@ -73,7 +73,31 @@ coroutine.wrap(function()
         wait(200)
         game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
         wait(0)
-        loadstring(game:HttpGet("https://github.com/ITheJabissI/Mods/blob/main/RipperRemake"))()
+        loadstring(game:HttpGet("https://github.com/ITheJabissI/Mods/raw/main/RipperRemake"))()
+
+        end
+
+        end)()
+
+-- Frostbite
+coroutine.wrap(function()
+    while true do
+        wait(150)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+        loadstring(game:HttpGet("https://github.com/ITheJabissI/Mods/raw/main/FrostBite"))()
+
+        end
+
+        end)()
+
+-- Deer God
+coroutine.wrap(function()
+    while true do
+        wait(346)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+        loadstring(game:HttpGet("https://github.com/ITheJabissI/Mods/raw/main/Deer%20God"))()
 
         end
 
