@@ -7,7 +7,7 @@ local plr = game.Players.LocalPlayer
 local chr = plr.Character or plr.CharacterAdded:Wait()
 local tweenservice = game:GetService("TweenService")
 
--- ⚙️ Tải model từ Asset ID hoặc GitHub
+-- Load model from Asset ID or GitHub
 function LoadCustomInstance(source, parent)
     local model
 
@@ -23,25 +23,36 @@ function LoadCustomInstance(source, parent)
             local success, result = pcall(function()
                 return game:GetObjects("rbxassetid://" .. tostring(source))[1]
             end)
+
             if success and result then
                 model = result
             end
-        elseif typeof(source) == "string" and source:match("^https?://") and source:match("%.rbxm") then
+
+        elseif typeof(source) == "string"
+            and source:match("^https?://")
+            and source:match("%.rbxm") then
+
             local url = NormalizeGitHubURL(source)
+
             local success, result = pcall(function()
                 local filename = "temp_" .. math.random(100000, 999999) .. ".rbxm"
                 local content = game:HttpGet(url)
+
                 if writefile and (getcustomasset or getsynasset) and isfile and delfile then
                     writefile(filename, content)
+
                     local assetFunc = getcustomasset or getsynasset
                     local obj = game:GetObjects(assetFunc(filename))[1]
+
                     delfile(filename)
+
                     return obj
                 else
-                    warn("Executor không hỗ trợ file APIs.")
+                    warn("Executor does not support file APIs.")
                     return nil
                 end
             end)
+
             if success and result then
                 model = result
             end
@@ -51,11 +62,13 @@ function LoadCustomInstance(source, parent)
 
         if model then
             model.Parent = parent or workspace
+
             for _, obj in ipairs(model:GetDescendants()) do
                 if obj:IsA("Script") or obj:IsA("LocalScript") then
                     obj:Destroy()
                 end
             end
+
             pcall(function()
                 model:SetAttribute("LoadedByExecutor", true)
             end)
@@ -65,18 +78,54 @@ function LoadCustomInstance(source, parent)
     return model
 end
 
--- 🔽 Tải Frost entity từ GitHub
-local s = LoadCustomInstance("https://github.com/ITheJabissI/Mods/raw/main/RemakeFrosty.rbxm", workspace)
+-- Load Frost
+local s = LoadCustomInstance(
+    "https://github.com/ITheJabissI/Mods/raw/main/RemakeFrosty.rbxm",
+    workspace
+)
+
 if not s then
-    warn("Không thể tải Frost entity.")
+    warn("Could not load Frost entity.")
     return
 end
 
-local entity = s.RushNew
-entity.CFrame = GetRoom():WaitForChild("RoomEntrance").CFrame * CFrame.new(0, 5, -15)
-entity.Part.CFrame = entity.CFrame
+local entity = s:FindFirstChild("RushNew", true)
 
--- 🎵 Âm thanh xuất hiện
+if not entity then
+    warn("RushNew was not found inside Frost.")
+    s:Destroy()
+    return
+end
+
+entity.CFrame =
+    GetRoom():WaitForChild("RoomEntrance").CFrame
+    * CFrame.new(0, 5, -15)
+
+if entity:FindFirstChild("Part") then
+    entity.Part.CFrame = entity.CFrame
+end
+
+-- Find face particles anywhere inside the entity
+local function GetFaceParticles()
+    local face1 = entity:FindFirstChild("Face1", true)
+    local face2 = entity:FindFirstChild("Face2", true)
+
+    return face1, face2
+end
+
+local function SetFaceEnabled(enabled)
+    local face1, face2 = GetFaceParticles()
+
+    if face1 and face1:IsA("ParticleEmitter") then
+        face1.Enabled = enabled
+    end
+
+    if face2 and face2:IsA("ParticleEmitter") then
+        face2.Enabled = enabled
+    end
+end
+
+-- 🎵 Appearance sound
 local sound = Instance.new("Sound")
 sound.SoundId = "rbxassetid://137044859218769"
 sound.Looped = false
@@ -85,92 +134,94 @@ sound.PlaybackSpeed = 1
 sound.Parent = s
 sound:Play()
 
--- ❄️ Hiệu ứng lạnh
+-- ❄️ Frost effect
 local frost = Instance.new("ColorCorrectionEffect")
 frost.Parent = game.Lighting
-tweenservice:Create(frost, TweenInfo.new(10), {
-    TintColor = Color3.fromRGB(0, 0, 255),
-    Saturation = -0.7,
-    Contrast = 0.2
-}):Play()
 
--- Tắt hiệu ứng ban đầu
-local attachment = entity:FindFirstChild("Attachment")
-if attachment then
-    local head = attachment:FindFirstChild("Head")
-    if head then
-        local particles = head:FindFirstChild("Particles")
-        if particles then
-            particles.Enabled = false
-        end
-    end
-end
+tweenservice:Create(
+    frost,
+    TweenInfo.new(10),
+    {
+        TintColor = Color3.fromRGB(0, 0, 255),
+        Saturation = -0.7,
+        Contrast = 0.2
+    }
+):Play()
 
-wait(8)
+-- Turn face OFF initially
+SetFaceEnabled(false)
 
--- Bật hiệu ứng trở lại
-local attachment = entity:FindFirstChild("Attachment")
-if attachment then
-    local head = attachment:FindFirstChild("Head")
-    if head then
-        local particle1 = head:FindFirstChild("Face1")
-        local particle2 = head:FindFirstChild("Face2")
-            particle1.Enabled = true
-            particle2.Enabled = true
-        end
-    end
-end
+task.wait(8)
 
--- Phát âm thanh
-pcall(function() entity.Ambience:Play() end)
-pcall(function() entity.AmbienceFar:Play() end)
+-- Turn face ON
+SetFaceEnabled(true)
 
--- 🔥 Gây sát thương nếu không có bật lửa
+-- Play ambience
+pcall(function()
+    entity.Ambience:Play()
+end)
+
+pcall(function()
+    entity.AmbienceFar:Play()
+end)
+
+-- 🔥 Damage if player doesn't have lighter
 local dmg = true
+
 task.spawn(function()
     while dmg do
-        wait(1)
+        task.wait(1)
+
         local lighter = chr:FindFirstChild("Lighter")
+
         if not lighter then
             pcall(function()
                 chr.Humanoid.Health -= 3
-                game.ReplicatedStorage.GameStats["Player_" .. plr.Name].Total.DeathCause.Value = "Frostbite"
+
+                game.ReplicatedStorage.GameStats[
+                    "Player_" .. plr.Name
+                ].Total.DeathCause.Value = "Frostbite"
             end)
         end
     end
 end)
 
--- 🛑 Khi chuyển phòng
+-- 🛑 When changing rooms
 game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+
 dmg = false
 
-local attachment = entity:FindFirstChild("Attachment")
-if attachment then
-    local head = attachment:FindFirstChild("Head")
-    if head then
-        local particle1 = head:FindFirstChild("Face1")
-        local particle2 = head:FindFirstChild("Face2")
-            particle1.Enabled = false
-            particle2.Enabled = false
-        end
-    end
-end
+-- Turn face OFF
+SetFaceEnabled(false)
 
-pcall(function() entity.Ambience:Stop() end)
-pcall(function() entity.AmbienceFar:Stop() end)
+pcall(function()
+    entity.Ambience:Stop()
+end)
 
--- Âm thanh biến mất
-local des = entity.Despawn
-des:Play()
+pcall(function()
+    entity.AmbienceFar:Stop()
+end)
 
-wait(5)
+-- Despawn sound
+pcall(function()
+    entity.Despawn:Play()
+end)
+
+task.wait(5)
+
 s:Destroy()
 
--- 🧊 Hoàn tác hiệu ứng
-tweenservice:Create(frost, TweenInfo.new(5), {
-    TintColor = Color3.fromRGB(255, 255, 255),
-    Saturation = 0,
-    Contrast = 0
-}):Play()
-wait(5)
+-- 🧊 Restore lighting
+tweenservice:Create(
+    frost,
+    TweenInfo.new(5),
+    {
+        TintColor = Color3.fromRGB(255, 255, 255),
+        Saturation = 0,
+        Contrast = 0
+    }
+):Play()
+
+task.wait(5)
+
 frost:Destroy()
