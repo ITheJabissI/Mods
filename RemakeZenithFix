@@ -1,0 +1,80 @@
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "ModInfo"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+local frame = Instance.new("Frame")
+frame.Name = "InfoBox"
+frame.Size = UDim2.new(0, 230, 0, 55)
+frame.Position = UDim2.new(0, 5, 0, 5)
+frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+frame.BackgroundTransparency = 1
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+local text = Instance.new("TextLabel")
+text.Name = "Text"
+text.Size = UDim2.new(1, -8, 1, -6)
+text.Position = UDim2.new(0, 4, 0, 3)
+text.BackgroundTransparency = 1
+text.TextColor3 = Color3.fromRGB(255, 255, 255)
+text.TextSize = 15
+text.Font = Enum.Font.Code
+text.TextXAlignment = Enum.TextXAlignment.Left
+text.TextYAlignment = Enum.TextYAlignment.Top
+text.TextWrapped = false
+text.Text = 'Mod Created By "Zenith"\nOMG he has a lot of names\nOG made by Noonie, Ping, and Others'
+text.Parent = frame
+
+-- Sprint Bar
+loadstring(game:HttpGet("https://raw.githubusercontent.com/MuhXd/DoorSuff/main/OtherSuff/Sprint"))()
+
+-- shocker
+coroutine.wrap(function()
+    while true do
+        wait(35)
+        loadstring(game:HttpGet("https://github.com/ITheJabissI/Mods/raw/main/Shocker"))()
+end
+
+end)()
+
+-- Dread
+coroutine.wrap(function()
+    while true do
+        wait(550)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)       
+loadstring(game:HttpGet("https://github.com/ITheJabissI/Mods/raw/main/Fread"))()
+
+end
+
+end)()
+
+-- Rebound
+coroutine.wrap(function()
+    while true do
+        wait(150)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+loadstring(game:HttpGet("https://github.com/ITheJabissI/Mods/raw/main/Rebound1"))()
+
+end
+
+end)()
+
+-- Ripper
+coroutine.wrap(function()
+    while true do
+        wait(200)
+        game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+        wait(0)
+        loadstring(game:HttpGet("https://github.com/ITheJabissI/Mods/blob/main/RipperRemake"))()
+
+        end
+
+        end)()
