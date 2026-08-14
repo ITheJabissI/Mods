@@ -63,7 +63,7 @@ local entity = Spawner:Create({
 		Values = {7.5, 15, 0.1, 2} -- Magnitude, Roughness, FadeIn, FadeOut
 	},
 	Movement = {
-		Speed = 380,
+		Speed = 100,
 		Delay = 8,
 		Reversed = true
 	},
@@ -96,7 +96,6 @@ local entity = Spawner:Create({
 
 entity:SetCallback("OnSpawned", function()
 	print("Entity has spawned")
-	light(2,Color3.fromRGB(127, 249, 255),Color3.fromRGB(65, 138, 255))
 	local TweenService = game:GetService("TweenService")
 	local sound = Instance.new("Sound")
 	sound.SoundId = "rbxassetid://6734393210"
