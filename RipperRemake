@@ -31,7 +31,7 @@ local entity = spawner.Create({
 	Entity = {
 		Name = "RipperMovings",
 		Asset = "https://github.com/ITheJabissI/Mods/raw/main/ripperremakebetter.rbxm",
-		HeightOffset = 2.125
+		HeightOffset = 6
 	},
 	Lights = {
 		Flicker = { Enabled = false, Duration = 7 },
