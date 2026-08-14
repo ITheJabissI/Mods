@@ -139,6 +139,9 @@ SetFaceEnabled(false)
 
 task.wait(8)
 
+-- Turn face ON
+SetFaceEnabled(true)
+
 -- ❄️ Frost effect
 local frost = Instance.new("ColorCorrectionEffect")
 frost.Parent = game.Lighting
@@ -152,9 +155,6 @@ tweenservice:Create(
         Contrast = 0.2
     }
 ):Play()
-
--- Turn face ON
-SetFaceEnabled(true)
 
 -- Play ambience
 pcall(function()
