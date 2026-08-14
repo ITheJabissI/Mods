@@ -50,8 +50,8 @@ for i,v in pairs(Dread:GetDescendants()) do
 end
 
 Debri:AddItem(Dread, 4)
-game.Lighting.MainColorCorrection.Contrast = 10000
-game.Lighting.MainColorCorrection.Saturation = 10000
+game.Lighting.MainColorCorrection.Contrast = 5
+game.Lighting.MainColorCorrection.Saturation = -1
 wait(4)
 game:GetService("RunService").RenderStepped:Connect(function()
 HumanoidRootPart.Position = SpawnVariable.Parts.Floor.Position
@@ -63,7 +63,7 @@ end)
             end)
             camShake:Start()
             camShake:ShakeOnce(90, 90, 90, 90.5, 90, 95)
-wait(7)
+wait(4)
 game.Players.LocalPlayer.Character.Humanoid:TakeDamage(125)
 SpawnVariable.Parts.Floor:Destroy()
 end
