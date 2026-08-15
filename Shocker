@@ -85,16 +85,7 @@ local function spawnShocker()
         hasFallen = true
 
         -- Unanchor EVERY part in the Shocker model.
-        for _, object in ipairs(
-            shockerModel:GetDescendants()
-        ) do
-
-            if object:IsA("BasePart") then
-                object.Anchored = false
-            end
-
-        end
-
+        oogaBoogaaPart.Anchored = false
         oogaBoogaaPart.CanCollide = false
 
         print(
