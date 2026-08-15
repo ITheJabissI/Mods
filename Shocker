@@ -1,315 +1,259 @@
+--// Hungry Entity (FINAL UPDATED VERSION)
+
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
+local root = character:WaitForChild("HumanoidRootPart")
+local camera = workspace.CurrentCamera
 
-local GITHUB_URL = "https://github.com/ITheJabissI/Mods/raw/main/ShockerRemake.rbxm"
-local FILE_NAME = "ShockerRemake.rbxm"
+--// SETTINGS
+local DAMAGE = 30
+local ATTACK_DELAY = 2.5
+local LOOK_THRESHOLD = 0.65
 
---==============================================================
--- LOAD SHOCKER
---==============================================================
+--// only once per executor/session
+getgenv().HungryBadgeGiven = getgenv().HungryBadgeGiven or false
 
-local function loadShocker()
+--// LOAD MODEL
+local fileName = "ShockerRemake.rbxm"
 
-    if not isfile(FILE_NAME) then
-        writefile(FILE_NAME, game:HttpGet(GITHUB_URL))
-    end
-
-    local customAsset = getcustomasset or getsynasset
-
-    if not customAsset then
-        error("Your executor does not support getcustomasset/getsynasset.")
-    end
-
-    local assetPath = customAsset(FILE_NAME)
-    local objects = game:GetObjects(assetPath)
-
-    if #objects == 0 then
-        error("Failed to load ShockerRemake.rbxm")
-    end
-
-    return objects[1]
+if not isfile(fileName) then
+	writefile(
+		fileName,
+		game:HttpGet("https://github.com/ITheJabissI/Mods/raw/main/ShockerRemake.rbxm")
+	)
 end
 
---==============================================================
--- SPAWN SHOCKER
---==============================================================
-
-local function spawnShocker()
-
-    local shockerModel = loadShocker()
-    local camera = Workspace.CurrentCamera
-
-    local rootPart =
-        shockerModel:FindFirstChild("HumanoidRootPart", true)
-        or shockerModel:FindFirstChildWhichIsA("BasePart", true)
-
-    if not rootPart then
-        error("Shocker model has no BasePart.")
-    end
-
-    shockerModel.PrimaryPart = rootPart
-    shockerModel.Parent = Workspace
-
-    shockerModel:PivotTo(
-        camera.CFrame * CFrame.new(0, 0, -7)
-    )
-
-    local oogaBoogaaPart =
-        shockerModel:WaitForChild("OOGA BOOGAAAA")
-
-    local horrorScream =
-        oogaBoogaaPart:WaitForChild("HORROR SCREAM 15")
-
-    local lookDuration = 2
-    local lookStart = nil
-    local hasTriggered = false
-    local hasFallen = false
-
-    --==========================================================
-    -- UNANCHOR INSTEAD OF DESTROYING
-    --==========================================================
-
-    local function fallToGround()
-
-        if hasFallen then
-            return
-        end
-
-        hasFallen = true
-
-        -- Unanchor EVERY part in the Shocker model.
-        oogaBoogaaPart.Anchored = false
-        oogaBoogaaPart.CanCollide = false
-
-        print(
-            "Shocker unanchored instead of destroyed"
-        )
-    end
-
-    --==========================================================
-    -- LOOK DETECTION
-    --==========================================================
-
-    local connection
-
-    connection =
-        RunService.RenderStepped:Connect(
-            function()
-
-                if not character
-                    or not character:FindFirstChild(
-                        "HumanoidRootPart"
-                    )
-                then
-                    return
-                end
-
-                if hasTriggered then
-
-                    connection:Disconnect()
-
-                    return
-                end
-
-                local offset =
-                    oogaBoogaaPart.Position
-                    - camera.CFrame.Position
-
-                if offset.Magnitude == 0 then
-                    return
-                end
-
-                local directionToShocker =
-                    offset.Unit
-
-                local playerLookVector =
-                    camera.CFrame.LookVector
-
-                local dot =
-                    directionToShocker:Dot(
-                        playerLookVector
-                    )
-
-                --================================================
-                -- PLAYER IS LOOKING AT SHOCKER
-                --================================================
-
-                if dot > 0.85 then
-
-                    if not lookStart then
-
-                        lookStart = tick()
-
-                    elseif
-                        tick() - lookStart
-                        >= lookDuration
-                    then
-
-                        hasTriggered = true
-
-                        connection:Disconnect()
-
-                        -- SCREAM
-                        horrorScream:Play()
-
-                        -- DAMAGE
-                        humanoid:TakeDamage(30)
-
-                        -- TARGET POSITION
-                        local targetPos =
-                            character.HumanoidRootPart.Position
-                            + Vector3.new(0, 2, 0)
-
-                        local tweenInfo =
-                            TweenInfo.new(
-                                1.2,
-                                Enum.EasingStyle.Exponential,
-                                Enum.EasingDirection.Out
-                            )
-
-                        local tween =
-                            TweenService:Create(
-                                oogaBoogaaPart,
-                                tweenInfo,
-                                {
-                                    Position = targetPos
-                                }
-                            )
-
-                        tween:Play()
-
-                        tween.Completed:Connect(
-                            function()
-
-                                fallToGround()
-
-                            end
-                        )
-
-                        --================================================
-                        -- DEATH CAUSE
-                        --================================================
-
-                        local gameStats =
-                            ReplicatedStorage:FindFirstChild(
-                                "GameStats"
-                            )
-
-                        local playerStats =
-                            gameStats
-                            and gameStats:FindFirstChild(
-                                "Player_" .. player.Name
-                            )
-
-                        if playerStats
-                            and playerStats:FindFirstChild(
-                                "Total"
-                            )
-                            and playerStats.Total:FindFirstChild(
-                                "DeathCause"
-                            )
-                        then
-
-                            playerStats.Total.DeathCause.Value =
-                                "Shocker"
-
-                        end
-
-                        --================================================
-                        -- DEATH HINT
-                        --================================================
-
-                        local remotesFolder =
-                            ReplicatedStorage:FindFirstChild(
-                                "RemotesFolder"
-                            )
-
-                        local deathHint =
-                            remotesFolder
-                            and remotesFolder:FindFirstChild(
-                                "DeathHint"
-                            )
-
-                        if deathHint then
-
-                            firesignal(
-                                deathHint.OnClientEvent,
-                                {
-                                    "You died to who you call Shocker...",
-                                    "Don't look at it or it stuns you!"
-                                },
-                                "Blue"
-                            )
-
-                        end
-
-                    end
-
-                else
-
-                    -- Player looked away.
-                    connection:Disconnect()
-
-                    fallToGround()
-
-                end
-
-            end
-        )
-
-    --==========================================================
-    -- 5 SECOND TIMEOUT
-    --==========================================================
-
-    task.delay(
-        5,
-        function()
-
-            if not hasTriggered
-                and not hasFallen
-            then
-
-                fallToGround()
-
-            end
-
-        end
-    )
-
-    --==========================================================
-    -- ACHIEVEMENT
-    --==========================================================
-
-    local achievementGiver =
-        loadstring(
-            game:HttpGet(
-                "https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Custom%20Achievements/Source.lua"
-            )
-        )()
-
-    achievementGiver({
-
-        Title = "Shocking Experience",
-
-        Desc = "Look at me.",
-
-        Reason = "Encounter Shocker.",
-
-        Image = "rbxassetid://17857830685"
-
-    })
-
+local entity = game:GetObjects(getcustomasset(fileName))[1]
+entity.Parent = workspace
+
+if not entity.PrimaryPart then
+	entity.PrimaryPart = entity:FindFirstChildWhichIsA("BasePart", true)
 end
 
---==============================================================
--- START
---==============================================================
+local primary = entity.PrimaryPart
 
-spawnShocker()
+if not primary then
+	warn("No PrimaryPart found for Hungry entity.")
+	return
+end
+
+--// freeze parts
+for _, v in pairs(entity:GetDescendants()) do
+	if v:IsA("BasePart") then
+		v.Anchored = true
+		v.CanCollide = false
+	end
+end
+
+--// Make OOGA BOOGAAAA collidable
+local ooga = entity:FindFirstChild("OOGA BOOGAAAA", true)
+
+if ooga and ooga:IsA("BasePart") then
+	ooga.CanCollide = true
+	ooga.Anchored = true
+	ooga.Massless = false
+end
+
+--// spawn in front
+entity:PivotTo(root.CFrame * CFrame.new(0, 0, -8))
+
+--// scream
+local scream = Instance.new("Sound")
+scream.SoundId = "rbxassetid://297569488"
+scream.Volume = 3
+scream.PlaybackSpeed = 1
+scream.Parent = primary
+
+local distort = Instance.new("DistortionSoundEffect", scream)
+distort.Level = 0.89
+
+local eqdistort = Instance.new("EqualizerSoundEffect", scream)
+eqdistort.HighGain = -80
+eqdistort.LowGain = 10
+eqdistort.MidGain = -1.7
+
+local pitch = Instance.new("PitchShiftSoundEffect", scream)
+pitch.Octave = 0.77
+
+local state = "alive"
+
+--// LOOK CHECK
+local function IsLookingAtEntity()
+	if not entity or not entity.Parent then
+		return false
+	end
+
+	local camPos = camera.CFrame.Position
+	local lookDir = camera.CFrame.LookVector
+
+	for _, part in ipairs(entity:GetDescendants()) do
+		if part:IsA("BasePart") then
+			local dir = part.Position - camPos
+			local dist = dir.Magnitude
+
+			if dist > 0 then
+				dir = dir.Unit
+
+				if lookDir:Dot(dir) > LOOK_THRESHOLD then
+					local params = RaycastParams.new()
+					params.FilterType = Enum.RaycastFilterType.Blacklist
+					params.FilterDescendantsInstances = {character}
+
+					local result = workspace:Raycast(camPos, dir * dist, params)
+
+					if result and result.Instance and result.Instance:IsDescendantOf(entity) then
+						return true
+					end
+				end
+			end
+		end
+	end
+
+	return false
+end
+
+--// ACHIEVEMENT
+
+
+--// DESPAWN
+local function DespawnEntity(giveBadge)
+	if state == "dead" then
+		return
+	end
+
+	state = "dead"
+
+	for _, v in pairs(entity:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.Anchored = false
+			v.CanCollide = false
+		end
+	end
+
+	local badgeDone = false
+	local parentConn
+
+	--// badge fires EXACTLY when entity leaves workspace
+	if giveBadge then
+		parentConn = entity.AncestryChanged:Connect(function(_, parent)
+			if parent == nil and not badgeDone then
+				badgeDone = true
+
+				if parentConn then
+					parentConn:Disconnect()
+				end
+
+				GiveShockerBadge()
+			end
+		end)
+	end
+
+	local bv = Instance.new("BodyVelocity")
+	bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+	bv.Velocity = Vector3.new(0, -160, 0)
+	bv.Parent = primary
+
+	task.wait(2)
+
+	if entity and entity.Parent then
+		entity:Destroy()
+	end
+
+	--// fallback safety
+	if giveBadge and entity.Parent == nil and not badgeDone then
+		badgeDone = true
+
+		if parentConn then
+			parentConn:Disconnect()
+		end
+
+		GiveShockerBadge()
+	end
+end
+
+--// ATTACK
+local function Attack()
+	if state ~= "alive" then
+		return
+	end
+
+	state = "attacking"
+
+	local tween = TweenService:Create(
+		primary,
+		TweenInfo.new(0.2, Enum.EasingStyle.Linear),
+		{
+			CFrame = root.CFrame
+		}
+	)
+
+	tween:Play()
+	tween.Completed:Wait()
+
+	humanoid:TakeDamage(DAMAGE)
+	scream:Play()
+
+	--// CAMERA SHAKE
+	local original = camera.CFrame
+	local duration = 0.8
+	local start = tick()
+
+	while true do
+		local t = tick() - start
+		local alpha = t / duration
+
+		if alpha >= 1 then
+			break
+		end
+
+		local drop =
+			(-6 * math.exp(-t * 6)) +
+			(2.5 * math.exp(-t * 10) * math.sin(t * 25))
+
+		local rebound =
+			2 * math.exp(-t * 4) * math.sin(t * 12)
+
+		local y = drop + rebound
+
+		camera.CFrame =
+			original *
+			CFrame.new(0, y, 0)
+
+		RunService.RenderStepped:Wait()
+	end
+
+	camera.CFrame = original
+
+	--// CHANGED: Now passes true so you get the badge when attacked
+	DespawnEntity(true)
+end
+
+--// LOOK-AWAY DESPAWN
+task.spawn(function()
+	while state == "alive" and entity and entity.Parent do
+		if not IsLookingAtEntity() then
+			DespawnEntity(true)
+			break
+		end
+
+		RunService.RenderStepped:Wait()
+	end
+end)
+
+--// ATTACK CHECK
+task.delay(ATTACK_DELAY, function()
+	if state ~= "alive" then
+		return
+	end
+
+	if IsLookingAtEntity() then
+		Attack()
+	else
+		DespawnEntity(true)
+	end
+end)
