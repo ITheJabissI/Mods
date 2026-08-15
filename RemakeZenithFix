@@ -61,7 +61,7 @@ coroutine.wrap(function()
         wait(190)
         game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
         wait(0)
-loadstring(game:HttpGet("https://github.com/ITheJabissI/Mods/raw/main/Rebound1"))()
+loadstring(game:HttpGet("https://github.com/ITheJabissI/Mods/raw/main/reboundreveamp"))()
 
 end
 
