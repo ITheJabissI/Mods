@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -10,7 +11,12 @@ local humanoid = character:WaitForChild("Humanoid")
 local GITHUB_URL = "https://github.com/ITheJabissI/Mods/raw/main/ShockerRemake.rbxm"
 local FILE_NAME = "ShockerRemake.rbxm"
 
+--==============================================================
+-- LOAD SHOCKER
+--==============================================================
+
 local function loadShocker()
+
     if not isfile(FILE_NAME) then
         writefile(FILE_NAME, game:HttpGet(GITHUB_URL))
     end
@@ -31,7 +37,12 @@ local function loadShocker()
     return objects[1]
 end
 
+--==============================================================
+-- SPAWN SHOCKER
+--==============================================================
+
 local function spawnShocker()
+
     local shockerModel = loadShocker()
     local camera = Workspace.CurrentCamera
 
@@ -45,140 +56,269 @@ local function spawnShocker()
 
     shockerModel.PrimaryPart = rootPart
     shockerModel.Parent = Workspace
-    shockerModel:PivotTo(camera.CFrame * CFrame.new(0, 0, -7))
 
-    local oogaBoogaaPart = shockerModel:WaitForChild("OOGA BOOGAAAA")
-    local horrorScream = oogaBoogaaPart:WaitForChild("HORROR SCREAM 15")
+    shockerModel:PivotTo(
+        camera.CFrame * CFrame.new(0, 0, -7)
+    )
+
+    local oogaBoogaaPart =
+        shockerModel:WaitForChild("OOGA BOOGAAAA")
+
+    local horrorScream =
+        oogaBoogaaPart:WaitForChild("HORROR SCREAM 15")
 
     local lookDuration = 2
     local lookStart = nil
     local hasTriggered = false
     local hasFallen = false
 
+    --==========================================================
+    -- UNANCHOR INSTEAD OF DESTROYING
+    --==========================================================
+
     local function fallToGround()
-        if hasFallen then return end
+
+        if hasFallen then
+            return
+        end
+
         hasFallen = true
 
-        oogaBoogaaPart.Anchored = false
+        -- Unanchor EVERY part in the Shocker model.
+        for _, object in ipairs(
+            shockerModel:GetDescendants()
+        ) do
+
+            if object:IsA("BasePart") then
+                object.Anchored = false
+            end
+
+        end
+
         oogaBoogaaPart.CanCollide = false
 
-        task.delay(3, function()
-            if shockerModel and shockerModel.Parent then
-                shockerModel:Destroy()
-            end
-        end)
+        print(
+            "Shocker unanchored instead of destroyed"
+        )
     end
 
-    local RunService = game:GetService("RunService")
+    --==========================================================
+    -- LOOK DETECTION
+    --==========================================================
 
     local connection
-    connection = RunService.RenderStepped:Connect(function()
-        if not character or not character:FindFirstChild("HumanoidRootPart") then
-            return
-        end
 
-        if hasTriggered then
-            connection:Disconnect()
-            return
-        end
+    connection =
+        RunService.RenderStepped:Connect(
+            function()
 
-        local offset = oogaBoogaaPart.Position - camera.CFrame.Position
+                if not character
+                    or not character:FindFirstChild(
+                        "HumanoidRootPart"
+                    )
+                then
+                    return
+                end
 
-        if offset.Magnitude == 0 then
-            return
-        end
+                if hasTriggered then
 
-        local directionToShocker = offset.Unit
-        local playerLookVector = camera.CFrame.LookVector
-        local dot = directionToShocker:Dot(playerLookVector)
+                    connection:Disconnect()
 
-        if dot > 0.85 then
-            if not lookStart then
-                lookStart = tick()
-            elseif tick() - lookStart >= lookDuration then
-                hasTriggered = true
-                connection:Disconnect()
+                    return
+                end
 
-                horrorScream:Play()
+                local offset =
+                    oogaBoogaaPart.Position
+                    - camera.CFrame.Position
 
-                humanoid:TakeDamage(30)
+                if offset.Magnitude == 0 then
+                    return
+                end
 
-                local targetPos =
-                    character.HumanoidRootPart.Position
-                    + Vector3.new(0, 2, 0)
+                local directionToShocker =
+                    offset.Unit
 
-                local tweenInfo = TweenInfo.new(
-                    1.2,
-                    Enum.EasingStyle.Exponential,
-                    Enum.EasingDirection.Out
-                )
+                local playerLookVector =
+                    camera.CFrame.LookVector
 
-                local tween = TweenService:Create(
-                    oogaBoogaaPart,
-                    tweenInfo,
-                    {
-                        Position = targetPos
-                    }
-                )
+                local dot =
+                    directionToShocker:Dot(
+                        playerLookVector
+                    )
 
-                tween:Play()
+                --================================================
+                -- PLAYER IS LOOKING AT SHOCKER
+                --================================================
 
-                tween.Completed:Connect(function()
+                if dot > 0.85 then
+
+                    if not lookStart then
+
+                        lookStart = tick()
+
+                    elseif
+                        tick() - lookStart
+                        >= lookDuration
+                    then
+
+                        hasTriggered = true
+
+                        connection:Disconnect()
+
+                        -- SCREAM
+                        horrorScream:Play()
+
+                        -- DAMAGE
+                        humanoid:TakeDamage(30)
+
+                        -- TARGET POSITION
+                        local targetPos =
+                            character.HumanoidRootPart.Position
+                            + Vector3.new(0, 2, 0)
+
+                        local tweenInfo =
+                            TweenInfo.new(
+                                1.2,
+                                Enum.EasingStyle.Exponential,
+                                Enum.EasingDirection.Out
+                            )
+
+                        local tween =
+                            TweenService:Create(
+                                oogaBoogaaPart,
+                                tweenInfo,
+                                {
+                                    Position = targetPos
+                                }
+                            )
+
+                        tween:Play()
+
+                        tween.Completed:Connect(
+                            function()
+
+                                fallToGround()
+
+                            end
+                        )
+
+                        --================================================
+                        -- DEATH CAUSE
+                        --================================================
+
+                        local gameStats =
+                            ReplicatedStorage:FindFirstChild(
+                                "GameStats"
+                            )
+
+                        local playerStats =
+                            gameStats
+                            and gameStats:FindFirstChild(
+                                "Player_" .. player.Name
+                            )
+
+                        if playerStats
+                            and playerStats:FindFirstChild(
+                                "Total"
+                            )
+                            and playerStats.Total:FindFirstChild(
+                                "DeathCause"
+                            )
+                        then
+
+                            playerStats.Total.DeathCause.Value =
+                                "Shocker"
+
+                        end
+
+                        --================================================
+                        -- DEATH HINT
+                        --================================================
+
+                        local remotesFolder =
+                            ReplicatedStorage:FindFirstChild(
+                                "RemotesFolder"
+                            )
+
+                        local deathHint =
+                            remotesFolder
+                            and remotesFolder:FindFirstChild(
+                                "DeathHint"
+                            )
+
+                        if deathHint then
+
+                            firesignal(
+                                deathHint.OnClientEvent,
+                                {
+                                    "You died to who you call Shocker...",
+                                    "Don't look at it or it stuns you!"
+                                },
+                                "Blue"
+                            )
+
+                        end
+
+                    end
+
+                else
+
+                    -- Player looked away.
+                    connection:Disconnect()
+
                     fallToGround()
-                end)
 
-                local gameStats =
-                    ReplicatedStorage:FindFirstChild("GameStats")
-
-                local playerStats =
-                    gameStats
-                    and gameStats:FindFirstChild("Player_" .. player.Name)
-
-                if playerStats
-                    and playerStats:FindFirstChild("Total")
-                    and playerStats.Total:FindFirstChild("DeathCause") then
-
-                    playerStats.Total.DeathCause.Value = "Shocker"
                 end
 
-                local remotesFolder =
-                    ReplicatedStorage:FindFirstChild("RemotesFolder")
-
-                local deathHint =
-                    remotesFolder
-                    and remotesFolder:FindFirstChild("DeathHint")
-
-                if deathHint then
-                    firesignal(deathHint.OnClientEvent, {
-                        "You died to who you call Shocker...",
-                        "Don't look at it or it stuns you!"
-                    }, "Blue")
-                end
             end
-        else
-            connection:Disconnect()
-            fallToGround()
-        end
-    end)
-
-    task.delay(5, function()
-        if not hasTriggered and not hasFallen then
-            fallToGround()
-        end
-    end)
-
-    local achievementGiver = loadstring(
-        game:HttpGet(
-            "https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Custom%20Achievements/Source.lua"
         )
-    )()
+
+    --==========================================================
+    -- 5 SECOND TIMEOUT
+    --==========================================================
+
+    task.delay(
+        5,
+        function()
+
+            if not hasTriggered
+                and not hasFallen
+            then
+
+                fallToGround()
+
+            end
+
+        end
+    )
+
+    --==========================================================
+    -- ACHIEVEMENT
+    --==========================================================
+
+    local achievementGiver =
+        loadstring(
+            game:HttpGet(
+                "https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Custom%20Achievements/Source.lua"
+            )
+        )()
 
     achievementGiver({
+
         Title = "Shocking Experience",
+
         Desc = "Look at me.",
+
         Reason = "Encounter Shocker.",
+
         Image = "rbxassetid://17857830685"
+
     })
+
 end
+
+--==============================================================
+-- START
+--==============================================================
 
 spawnShocker()
