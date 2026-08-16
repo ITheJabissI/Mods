@@ -1,0 +1,1882 @@
+--==============================================================
+-- RIPPER ENTITY
+--==============================================================
+
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local Debris = game:GetService("Debris")
+local RunService = game:GetService("RunService")
+
+--==============================================================
+-- SETTINGS
+--==============================================================
+
+local ENTITY_ASSET =
+	"https://github.com/ITheJabissI/Mods/raw/main/RipperRemake.rbxm"
+
+local ENTITY_NAME = "Ripper"
+
+local SPEED = 100
+local OFFSET = Vector3.new(0, 8, 0)
+local STOP_DISTANCE = 1
+local REBOUNDS = 0
+local ENTITY_WAIT_TIME = 5
+
+local RED_LIGHTS = true
+local LIGHT_TWEEN_TIME = 5
+
+local COLOR_EFFECT_ENABLED = true
+
+--==============================================================
+-- CAMERA SHAKE
+-- SHAKE ONLY WHEN ENTITY SPAWNS
+--==============================================================
+
+local CAMERA_SHAKE_ENABLED = true
+local CAMERA_SHAKE_MAGNITUDE = 5
+local CAMERA_SHAKE_ROUGHNESS = 5
+local CAMERA_SHAKE_FADE_IN = 0
+local CAMERA_SHAKE_FADE_OUT = 5.5
+
+--==============================================================
+-- JUMPSCARE
+--==============================================================
+
+local JUMPSCARE_ENABLED = true
+local JUMPSCARE_DISTANCE = 100
+local JUMPSCARE_FLASH_DURATION = 1.2
+
+local JUMPSCARE_IMAGE_1 =
+	"rbxassetid://94547864377343"
+
+local JUMPSCARE_IMAGE_2 =
+	"rbxassetid://236542974"
+
+--==============================================================
+-- CRASH / JUMPSCARE SOUND
+-- STARTS WHEN FACE1 CHANGES
+--==============================================================
+
+local JUMPSCARE_SOUND_URL =
+	"https://github.com/DripCapybara/Doors-Modes/raw/main/HardcoreMode/game%20crash%20sound.mp3"
+
+local JUMPSCARE_SOUND_NAME =
+	"RipperJumpscare"
+
+local JUMPSCARE_SOUND_VOLUME = 13
+
+--==============================================================
+-- STATIC
+-- STARTS 3 SECONDS AFTER FACE CHANGE
+--==============================================================
+
+local STATIC_SOUND_ID =
+	"rbxassetid://170092034"
+
+local STATIC_SOUND_VOLUME = 1
+local STATIC_PLAYBACK_SPEED = 0.4
+local STATIC_FADE_TIME = 1.5
+
+--==============================================================
+-- FACE
+--==============================================================
+
+local JUMPSCARE_FACE_TEXTURE =
+	"rbxassetid://11816152645"
+
+local JUMPSCARE_SQUASH = 0.4
+local LOOK_TWEEN_TIME = 0.35
+
+--==============================================================
+-- PLAYER
+--==============================================================
+
+local Player = Players.LocalPlayer
+
+local Character =
+	Player.Character
+	or Player.CharacterAdded:Wait()
+
+local HRP =
+	Character:WaitForChild("HumanoidRootPart")
+
+local Humanoid =
+	Character:WaitForChild("Humanoid")
+
+--==============================================================
+-- LOAD ENTITY
+--==============================================================
+
+local function loadEntity(asset)
+
+	if asset:match("^rbxassetid://") then
+
+		local success, objects =
+			pcall(function()
+				return game:GetObjects(asset)
+			end)
+
+		if not success
+			or not objects
+			or #objects == 0
+		then
+			warn("RBX asset loading failed:", objects)
+			return nil
+		end
+
+		return objects[1]
+	end
+
+	if asset:match("^https?://") then
+
+		local getCustom =
+			getcustomasset
+			or getsynasset
+
+		if type(getCustom) ~= "function" then
+			warn("getcustomasset/getsynasset unavailable.")
+			return nil
+		end
+
+		if type(isfile) ~= "function"
+			or type(writefile) ~= "function"
+		then
+			warn("Executor file functions unavailable.")
+			return nil
+		end
+
+		local fileName = "RipperEntity.rbxm"
+
+		if not isfile(fileName) then
+
+			local success, data =
+				pcall(function()
+					return game:HttpGet(asset)
+				end)
+
+			if not success then
+				warn("GitHub model download failed:", data)
+				return nil
+			end
+
+			if type(data) ~= "string"
+				or #data == 0
+			then
+				warn("GitHub returned an empty model.")
+				return nil
+			end
+
+			local saved, errorMessage =
+				pcall(function()
+					writefile(fileName, data)
+				end)
+
+			if not saved then
+				warn("Could not save model:", errorMessage)
+				return nil
+			end
+		end
+
+		local customAsset
+
+		local success =
+			pcall(function()
+				customAsset = getCustom(fileName)
+			end)
+
+		if not success or not customAsset then
+			warn("getcustomasset failed.")
+			return nil
+		end
+
+		local objects
+
+		local loaded, loadError =
+			pcall(function()
+				objects = game:GetObjects(customAsset)
+			end)
+
+		if not loaded
+			or not objects
+			or #objects == 0
+		then
+			warn("RBXM loading failed:", loadError)
+			return nil
+		end
+
+		return objects[1]
+	end
+
+	return nil
+end
+
+local LoadedObject =
+	loadEntity(ENTITY_ASSET)
+
+if not LoadedObject then
+	warn("ENTITY FAILED TO LOAD.")
+	return
+end
+
+--==============================================================
+-- NORMALIZE MODEL
+--==============================================================
+
+local Figure
+
+if LoadedObject:IsA("Model") then
+
+	Figure = LoadedObject
+
+elseif LoadedObject:IsA("BasePart") then
+
+	Figure = Instance.new("Model")
+	LoadedObject.Parent = Figure
+
+else
+
+	local foundModel =
+		LoadedObject:FindFirstChildWhichIsA(
+			"Model",
+			true
+		)
+
+	if foundModel then
+
+		Figure = foundModel
+
+	else
+
+		local foundPart =
+			LoadedObject:FindFirstChildWhichIsA(
+				"BasePart",
+				true
+			)
+
+		if not foundPart then
+			warn("Entity has no BasePart.")
+			LoadedObject:Destroy()
+			return
+		end
+
+		Figure = Instance.new("Model")
+		foundPart.Parent = Figure
+	end
+end
+
+Figure.Name = ENTITY_NAME
+Figure.Parent = Workspace
+
+--==============================================================
+-- RUSHNEW
+--==============================================================
+
+local RushNew =
+	Figure:FindFirstChild(
+		"RushNew",
+		true
+	)
+
+if not RushNew
+	or not RushNew:IsA("BasePart")
+then
+	warn("RushNew not found.")
+	Figure:Destroy()
+	return
+end
+
+Figure.PrimaryPart = RushNew
+
+--==============================================================
+-- ATTACHMENT / FACE1
+--==============================================================
+
+local Attachment =
+	RushNew:FindFirstChild("Attachment")
+
+if not Attachment then
+
+	Attachment =
+		Figure:FindFirstChild(
+			"Attachment",
+			true
+		)
+
+end
+
+local Face1
+
+if Attachment then
+
+	Face1 =
+		Attachment:FindFirstChild("Face1")
+
+end
+
+if not Face1 then
+
+	Face1 =
+		Figure:FindFirstChild(
+			"Face1",
+			true
+		)
+
+end
+
+if Face1
+	and Face1:IsA("ParticleEmitter")
+then
+	print("Face1 found.")
+else
+	warn("Face1 ParticleEmitter not found.")
+	Face1 = nil
+end
+
+--==============================================================
+-- ANCHOR
+--==============================================================
+
+for _, part in ipairs(
+	Figure:GetDescendants()
+) do
+
+	if part:IsA("BasePart") then
+
+		part.Anchored = true
+		part.CanCollide = false
+
+	end
+
+end
+
+RushNew.CanCollide = true
+
+--==============================================================
+-- UNANCHOR
+--==============================================================
+
+local function unanchorEntity()
+
+	if not Figure
+		or not Figure.Parent
+	then
+		return
+	end
+
+	for _, part in ipairs(
+		Figure:GetDescendants()
+	) do
+
+		if part:IsA("BasePart") then
+
+			part.Anchored = false
+			part.CanCollide = false
+
+		end
+
+	end
+
+	print("Ripper unanchored.")
+
+end
+
+--==============================================================
+-- ROOMS
+--==============================================================
+
+local roomsFolder =
+	Workspace:WaitForChild(
+		"CurrentRooms"
+	)
+
+local latestRoomValue =
+	ReplicatedStorage
+		:WaitForChild("GameData")
+		:WaitForChild("LatestRoom")
+
+local latestRoom =
+	tonumber(latestRoomValue.Value)
+
+local rooms =
+	roomsFolder:GetChildren()
+
+table.sort(
+	rooms,
+	function(a, b)
+
+		return
+			(tonumber(a.Name) or 0)
+			<
+			(tonumber(b.Name) or 0)
+
+	end
+)
+
+local currentIndex
+
+for i, room in ipairs(rooms) do
+
+	if tonumber(room.Name) == latestRoom then
+
+		currentIndex = i
+		break
+
+	end
+
+end
+
+if not currentIndex then
+
+	warn(
+		"Current room not found:",
+		latestRoom
+	)
+
+	Figure:Destroy()
+	return
+
+end
+
+--==============================================================
+-- SPAWN 5 ROOMS BEHIND
+--==============================================================
+
+local spawnIndex =
+	math.max(
+		1,
+		currentIndex - 5
+	)
+
+local spawnRoom =
+	rooms[spawnIndex]
+
+if not spawnRoom then
+
+	warn("Spawn room not found.")
+	Figure:Destroy()
+	return
+
+end
+
+local spawnPart =
+	spawnRoom.PrimaryPart
+	or spawnRoom:FindFirstChildWhichIsA(
+		"BasePart",
+		true
+	)
+
+if not spawnPart then
+
+	warn("No spawn part found.")
+	Figure:Destroy()
+	return
+
+end
+
+--==============================================================
+-- SPAWN
+--==============================================================
+
+Figure:PivotTo(
+	spawnPart.CFrame + OFFSET
+)
+
+print(
+	"Ripper spawned in room:",
+	spawnRoom.Name
+)
+
+--==============================================================
+-- CAMERA SHAKE ON SPAWN
+--==============================================================
+
+if CAMERA_SHAKE_ENABLED then
+
+	local module =
+		ReplicatedStorage:FindFirstChild(
+			"CameraShaker"
+		)
+
+	if module then
+
+		local success,
+			CameraShaker =
+			pcall(function()
+				return require(module)
+			end)
+
+		if success then
+
+			local camShake =
+				CameraShaker.new(
+					Enum.RenderPriority.Camera.Value,
+
+					function(shakeCf)
+
+						local camera =
+							Workspace.CurrentCamera
+
+						if camera then
+
+							camera.CFrame =
+								camera.CFrame *
+								shakeCf
+
+						end
+
+					end
+				)
+
+			camShake:Start()
+
+			camShake:ShakeOnce(
+				CAMERA_SHAKE_MAGNITUDE,
+				CAMERA_SHAKE_ROUGHNESS,
+				CAMERA_SHAKE_FADE_IN,
+				CAMERA_SHAKE_FADE_OUT
+			)
+
+			print("Spawn camera shake played.")
+
+		else
+
+			warn(
+				"CameraShaker failed to load."
+			)
+
+		end
+
+	else
+
+		warn(
+			"CameraShaker module not found."
+		)
+
+	end
+end
+
+--==============================================================
+-- RED LIGHTS
+--==============================================================
+
+if RED_LIGHTS then
+
+	local currentRoom =
+		rooms[currentIndex]
+
+	for _, object in ipairs(
+		currentRoom:GetDescendants()
+	) do
+
+		if object:IsA("PointLight")
+			or object:IsA("SpotLight")
+			or object:IsA("SurfaceLight")
+		then
+
+			TweenService:Create(
+				object,
+
+				TweenInfo.new(
+					LIGHT_TWEEN_TIME,
+					Enum.EasingStyle.Linear
+				),
+
+				{
+					Color =
+						Color3.fromRGB(
+							255,
+							0,
+							0
+						)
+				}
+			):Play()
+
+		end
+
+	end
+end
+
+--==============================================================
+-- WAIT
+--==============================================================
+
+task.wait(
+	ENTITY_WAIT_TIME
+)
+
+--==============================================================
+-- COLOR EFFECT
+--==============================================================
+
+local colorEffect
+
+if COLOR_EFFECT_ENABLED then
+
+	colorEffect =
+		Instance.new(
+			"ColorCorrectionEffect"
+		)
+
+	colorEffect.Name =
+		"RipperColorEffect"
+
+	colorEffect.Parent =
+		Lighting
+
+	TweenService:Create(
+		colorEffect,
+
+		TweenInfo.new(5),
+
+		{
+			TintColor =
+				Color3.fromRGB(
+					255,
+					0,
+					0
+				),
+
+			Saturation = -0.7,
+			Contrast = 0.2
+		}
+	):Play()
+
+end
+
+--==============================================================
+-- NODES
+--==============================================================
+
+local function getNodes(room)
+
+	local folder =
+		room:FindFirstChild("Nodes")
+
+	if not folder then
+		return {}
+	end
+
+	local nodes = {}
+
+	for _, node in ipairs(
+		folder:GetChildren()
+	) do
+
+		if node:IsA("BasePart") then
+
+			node.Anchored = true
+			node.CanCollide = false
+
+			table.insert(
+				nodes,
+				node
+			)
+
+		end
+
+	end
+
+	table.sort(
+		nodes,
+		function(a, b)
+
+			return
+				(tonumber(a.Name) or 0)
+				<
+				(tonumber(b.Name) or 0)
+
+		end
+	)
+
+	return nodes
+end
+
+local path = {}
+
+for i = spawnIndex, currentIndex do
+
+	local room = rooms[i]
+
+	if room then
+
+		for _, node in ipairs(
+			getNodes(room)
+		) do
+
+			table.insert(
+				path,
+				node
+			)
+
+		end
+
+	end
+end
+
+local currentRoom =
+	rooms[currentIndex]
+
+local roomExit =
+	currentRoom:FindFirstChild(
+		"RoomExit",
+		true
+	)
+
+if roomExit
+	and roomExit:IsA("BasePart")
+then
+
+	table.insert(
+		path,
+		roomExit
+	)
+
+end
+
+if #path == 0 then
+
+	warn("PATH EMPTY")
+	Figure:Destroy()
+	return
+
+end
+
+--==============================================================
+-- LINE OF SIGHT
+--==============================================================
+
+local function playerInSight()
+
+	if not Figure
+		or not Figure.Parent
+	then
+		return false
+	end
+
+	if not HRP
+		or not HRP.Parent
+	then
+		return false
+	end
+
+	local origin =
+		RushNew.Position
+
+	local direction =
+		HRP.Position - origin
+
+	if direction.Magnitude <= 0.01 then
+		return true
+	end
+
+	local params =
+		RaycastParams.new()
+
+	params.FilterType =
+		Enum.RaycastFilterType.Exclude
+
+	params.FilterDescendantsInstances = {
+		Figure
+	}
+
+	params.IgnoreWater = true
+
+	local result =
+		Workspace:Raycast(
+			origin,
+			direction,
+			params
+		)
+
+	if not result then
+		return true
+	end
+
+	return result.Instance:IsDescendantOf(
+		Character
+	)
+end
+
+--==============================================================
+-- STOP ALL SOUNDS
+--==============================================================
+
+local function stopAllSounds()
+
+	for _, object in ipairs(
+		Workspace:GetDescendants()
+	) do
+
+		if object:IsA("Sound") then
+
+			pcall(function()
+
+				object:Stop()
+				object.TimePosition = 0
+
+			end)
+
+		end
+
+	end
+
+	for _, object in ipairs(
+		Character:GetDescendants()
+	) do
+
+		if object:IsA("Sound") then
+
+			pcall(function()
+
+				object:Stop()
+				object.TimePosition = 0
+
+			end)
+
+		end
+
+	end
+
+	local PlayerGui =
+		Player:FindFirstChild(
+			"PlayerGui"
+		)
+
+	if PlayerGui then
+
+		for _, object in ipairs(
+			PlayerGui:GetDescendants()
+		) do
+
+			if object:IsA("Sound") then
+
+				pcall(function()
+
+					object:Stop()
+					object.TimePosition = 0
+
+				end)
+
+			end
+
+		end
+
+	end
+
+end
+
+--==============================================================
+-- GITHUB SOUND
+--==============================================================
+
+local function GetGitSound(
+	url,
+	soundName
+)
+
+	if type(isfile) ~= "function"
+		or type(writefile) ~= "function"
+	then
+
+		warn(
+			"Executor does not support file functions."
+		)
+
+		return nil
+
+	end
+
+	local getCustom =
+		getcustomasset
+		or getsynasset
+
+	if type(getCustom) ~= "function" then
+
+		warn(
+			"getcustomasset/getsynasset unavailable."
+		)
+
+		return nil
+
+	end
+
+	local fileName =
+		soundName .. ".mp3"
+
+	if not isfile(fileName) then
+
+		local success,
+			content =
+			pcall(function()
+
+				return game:HttpGet(url)
+
+			end)
+
+		if not success then
+
+			warn(
+				"Sound download failed:",
+				content
+			)
+
+			return nil
+
+		end
+
+		if type(content) ~= "string"
+			or #content == 0
+		then
+
+			warn(
+				"Downloaded sound is empty."
+			)
+
+			return nil
+
+		end
+
+		local saved,
+			saveError =
+			pcall(function()
+
+				writefile(
+					fileName,
+					content
+				)
+
+			end)
+
+		if not saved then
+
+			warn(
+				"Could not save sound:",
+				saveError
+			)
+
+			return nil
+
+		end
+
+	end
+
+	local success,
+		assetId =
+		pcall(function()
+
+			return getCustom(fileName)
+
+		end)
+
+	if not success
+		or not assetId
+	then
+
+		warn(
+			"Could not create custom sound asset."
+		)
+
+		return nil
+
+	end
+
+	local sound =
+		Instance.new("Sound")
+
+	sound.Name =
+		soundName
+
+	sound.SoundId =
+		assetId
+
+	sound.Volume =
+		JUMPSCARE_SOUND_VOLUME
+
+	sound.Looped =
+		false
+
+	sound.Parent =
+		Workspace
+
+	local loaded =
+		pcall(function()
+
+			if not sound.IsLoaded then
+
+				sound.Loaded:Wait()
+
+			end
+
+		end)
+
+	if not loaded then
+
+		warn(
+			"Sound failed to load."
+		)
+
+		sound:Destroy()
+		return nil
+
+	end
+
+	local played =
+		pcall(function()
+
+			sound:Play()
+
+		end)
+
+	if not played then
+
+		warn(
+			"Sound failed to play."
+		)
+
+		sound:Destroy()
+		return nil
+
+	end
+
+	print(
+		"Jumpscare sound PLAYING."
+	)
+
+	return sound
+
+end
+
+--==============================================================
+-- STATIC SOUND
+--==============================================================
+
+local function createStaticSound()
+
+	local static =
+		Instance.new("Sound")
+
+	static.Name =
+		"RipperStatic"
+
+	static.SoundId =
+		STATIC_SOUND_ID
+
+	static.Volume =
+		0
+
+	static.PlaybackSpeed =
+		STATIC_PLAYBACK_SPEED
+
+	static.Looped =
+		true
+
+	static.Parent =
+		Workspace
+
+	return static
+
+end
+
+--==============================================================
+-- PARTICLES / FACE
+--==============================================================
+
+local function setupJumpscareParticles()
+
+	-- Freeze EVERY particle EXCEPT Face1.
+	for _, object in ipairs(
+		Figure:GetDescendants()
+	) do
+
+		if object:IsA("ParticleEmitter") then
+
+			if object ~= Face1 then
+
+				pcall(function()
+
+					object.TimeScale = 0
+
+				end)
+
+				pcall(function()
+
+					object.Squash =
+						NumberSequence.new(
+							JUMPSCARE_SQUASH
+						)
+
+				end)
+
+			end
+
+		end
+
+	end
+
+	-- Face1 changes AND IS FROZEN.
+	if Face1 then
+
+		Face1.Texture =
+			JUMPSCARE_FACE_TEXTURE
+
+		Face1.Enabled =
+			true
+
+		pcall(function()
+
+			Face1.TimeScale = 0
+
+		end)
+
+		print(
+			"FACE1 CHANGED AND FROZEN."
+		)
+
+	end
+
+end
+
+--==============================================================
+-- SMOOTH LOOK
+--==============================================================
+
+local function smoothLookAtPlayer()
+
+	local entityPosition =
+		Figure:GetPivot().Position
+
+	local targetPosition =
+		Vector3.new(
+			HRP.Position.X,
+			entityPosition.Y,
+			HRP.Position.Z
+		)
+
+	if (
+		targetPosition -
+		entityPosition
+	).Magnitude <= 0.01
+	then
+		return
+	end
+
+	local startCFrame =
+		Figure:GetPivot()
+
+	local goalCFrame =
+		CFrame.lookAt(
+			entityPosition,
+			targetPosition
+		)
+
+	local value =
+		Instance.new(
+			"NumberValue"
+		)
+
+	value.Value = 0
+
+	local connection =
+		value:GetPropertyChangedSignal(
+			"Value"
+		):Connect(
+			function()
+
+				if Figure
+					and Figure.Parent
+				then
+
+					Figure:PivotTo(
+						startCFrame:Lerp(
+							goalCFrame,
+							value.Value
+						)
+					)
+
+				end
+
+			end
+		)
+
+	local tween =
+		TweenService:Create(
+			value,
+
+			TweenInfo.new(
+				LOOK_TWEEN_TIME,
+				Enum.EasingStyle.Sine,
+				Enum.EasingDirection.Out
+			),
+
+			{
+				Value = 1
+			}
+		)
+
+	tween:Play()
+	tween.Completed:Wait()
+
+	connection:Disconnect()
+	value:Destroy()
+
+end
+
+--==============================================================
+-- JUMPSCARE
+--==============================================================
+
+local jumpscareRunning = false
+
+local function startJumpscare()
+
+	if jumpscareRunning then
+		return
+	end
+
+	if not JUMPSCARE_ENABLED then
+		return
+	end
+
+	if not playerInSight() then
+		return
+	end
+
+	jumpscareRunning = true
+
+	print("======================================")
+	print("JUMPSCARE STARTED")
+	print("======================================")
+
+	-- STOP ALL EXISTING SOUNDS FIRST.
+	stopAllSounds()
+
+	--==========================================================
+	-- FREEZE ENTITY
+	--==========================================================
+
+	for _, part in ipairs(
+		Figure:GetDescendants()
+	) do
+
+		if part:IsA("BasePart") then
+			part.Anchored = true
+		end
+
+	end
+
+	--==========================================================
+	-- SMOOTH TURN
+	--==========================================================
+
+	smoothLookAtPlayer()
+
+	--==========================================================
+	-- FACE CHANGES
+	--==========================================================
+
+	setupJumpscareParticles()
+
+	--==========================================================
+	-- CRASH SOUND STARTS IMMEDIATELY WITH FACE CHANGE
+	--==========================================================
+
+	print(
+		"Starting crash/jumpscare sound..."
+	)
+
+	local crashSound =
+		GetGitSound(
+			JUMPSCARE_SOUND_URL,
+			JUMPSCARE_SOUND_NAME
+		)
+
+	--==========================================================
+	-- CAMERA
+	--==========================================================
+
+	local camera =
+		Workspace.CurrentCamera
+
+	local oldCameraType =
+		camera.CameraType
+
+	camera.CameraType =
+		Enum.CameraType.Scriptable
+
+	local cameraConnection =
+		RunService.RenderStepped:Connect(
+			function()
+
+				if RushNew
+					and RushNew.Parent
+				then
+
+					camera.CFrame =
+						CFrame.lookAt(
+							camera.CFrame.Position,
+							RushNew.Position
+						)
+
+				end
+
+			end
+		)
+
+	--==========================================================
+	-- FREEZE PLAYER
+	--==========================================================
+
+	local oldWalkSpeed =
+		Humanoid.WalkSpeed
+
+	local oldJumpPower =
+		Humanoid.JumpPower
+
+	local oldAutoRotate =
+		Humanoid.AutoRotate
+
+	local oldPlatformStand =
+		Humanoid.PlatformStand
+
+	Humanoid.WalkSpeed = 0
+	Humanoid.JumpPower = 0
+	Humanoid.AutoRotate = false
+	Humanoid.PlatformStand = true
+
+	--==========================================================
+	-- EXACTLY 3 SECOND STATIC DELAY
+	--==========================================================
+
+	print(
+		"Waiting 3 seconds before static..."
+	)
+
+	task.wait(1.7)
+
+	--==========================================================
+	-- STATIC
+	--==========================================================
+
+	print(
+		"STATIC STARTING"
+	)
+
+	local staticSound =
+		createStaticSound()
+
+	staticSound:Play()
+
+	local staticTween =
+		TweenService:Create(
+			staticSound,
+
+			TweenInfo.new(
+				STATIC_FADE_TIME,
+				Enum.EasingStyle.Linear,
+				Enum.EasingDirection.In
+			),
+
+			{
+				Volume =
+					STATIC_SOUND_VOLUME
+			}
+		)
+
+	staticTween:Play()
+
+	--==========================================================
+	-- GUI
+	--==========================================================
+
+	local PlayerGui =
+		Player:WaitForChild(
+			"PlayerGui"
+		)
+
+	local screenGui =
+		Instance.new("ScreenGui")
+
+	screenGui.Name =
+		"JumpscareOverlay"
+
+	screenGui.ResetOnSpawn =
+		false
+
+	screenGui.IgnoreGuiInset =
+		true
+
+	screenGui.DisplayOrder =
+		999999
+
+	screenGui.Parent =
+		PlayerGui
+
+	local imageLabel =
+		Instance.new("ImageLabel")
+
+	imageLabel.BackgroundTransparency =
+		1
+
+	imageLabel.BorderSizePixel =
+		0
+
+	imageLabel.Size =
+		UDim2.new(
+			1,
+			0,
+			1,
+			0
+		)
+
+	imageLabel.Position =
+		UDim2.new(
+			0,
+			0,
+			0,
+			0
+		)
+
+	imageLabel.ScaleType =
+		Enum.ScaleType.Stretch
+
+	imageLabel.Parent =
+		screenGui
+
+	--==========================================================
+	-- FLASH
+	--==========================================================
+
+	local startTime =
+		time()
+
+	while
+		time() - startTime
+		<
+		JUMPSCARE_FLASH_DURATION
+	do
+
+		imageLabel.Image =
+			JUMPSCARE_IMAGE_1
+
+		task.wait(0.05)
+
+		if
+			time() - startTime
+			>=
+			JUMPSCARE_FLASH_DURATION
+		then
+			break
+		end
+
+		imageLabel.Image =
+			JUMPSCARE_IMAGE_2
+
+		task.wait(0.05)
+
+	end
+
+	--==========================================================
+	-- KILL
+	--==========================================================
+
+	Humanoid.Health = 0
+
+	game.ReplicatedStorage.GameStats[
+		"Player_" ..
+		game.Players.LocalPlayer.Name
+	].Total.DeathCause.Value = "Ripper"
+
+	--==========================================================
+	-- UNANCHOR AFTER PLAYER DIES
+	--==========================================================
+
+	unanchorEntity()
+
+	--==========================================================
+	-- CLEANUP
+	--==========================================================
+
+	if cameraConnection then
+		cameraConnection:Disconnect()
+	end
+
+	camera.CameraType =
+		oldCameraType
+
+	Humanoid.WalkSpeed =
+		oldWalkSpeed
+
+	Humanoid.JumpPower =
+		oldJumpPower
+
+	Humanoid.AutoRotate =
+		oldAutoRotate
+
+	Humanoid.PlatformStand =
+		oldPlatformStand
+
+	if screenGui
+		and screenGui.Parent
+	then
+
+		screenGui:Destroy()
+
+	end
+
+	-- Fade static out.
+	if staticSound
+		and staticSound.Parent
+	then
+
+		local fadeOut =
+			TweenService:Create(
+				staticSound,
+
+				TweenInfo.new(
+					0.5,
+					Enum.EasingStyle.Linear
+				),
+
+				{
+					Volume = 0
+				}
+			)
+
+		fadeOut:Play()
+
+		fadeOut.Completed:Connect(
+			function()
+
+				if staticSound then
+					staticSound:Destroy()
+				end
+
+			end
+		)
+
+	end
+
+	if crashSound then
+
+		Debris:AddItem(
+			crashSound,
+			10
+		)
+
+	end
+
+end
+
+--==============================================================
+-- WATCH FOR PLAYER LOOKING
+--==============================================================
+
+task.spawn(function()
+
+	while
+		Figure
+		and Figure.Parent
+	do
+
+		if not jumpscareRunning
+			and JUMPSCARE_ENABLED
+			and HRP
+			and HRP.Parent
+		then
+
+			local distance =
+				(
+					RushNew.Position -
+					HRP.Position
+				).Magnitude
+
+			if distance <=
+				JUMPSCARE_DISTANCE
+			then
+
+				if playerInSight() then
+
+					startJumpscare()
+					break
+
+				end
+
+			end
+
+		end
+
+		task.wait(0.05)
+
+	end
+
+end)
+
+--==============================================================
+-- MOVE
+--==============================================================
+
+local completed = true
+
+for _, node in ipairs(path) do
+
+	if jumpscareRunning then
+
+		completed = false
+		break
+
+	end
+
+	if not node
+		or not node.Parent
+	then
+		continue
+	end
+
+	local distance =
+		(
+			RushNew.Position -
+			node.Position
+		).Magnitude
+
+	local travelTime =
+		math.max(
+			distance / SPEED,
+			0.03
+		)
+
+	local tween =
+		TweenService:Create(
+			RushNew,
+
+			TweenInfo.new(
+				travelTime,
+				Enum.EasingStyle.Linear
+			),
+
+			{
+				CFrame =
+					CFrame.new(
+						node.Position +
+						OFFSET
+					)
+			}
+		)
+
+	tween:Play()
+
+	while
+		tween.PlaybackState ==
+		Enum.PlaybackState.Playing
+	do
+
+		if jumpscareRunning then
+
+			tween:Cancel()
+			completed = false
+			break
+
+		end
+
+		RunService.Heartbeat:Wait()
+
+	end
+
+	if jumpscareRunning then
+		break
+	end
+
+	if HRP
+		and HRP.Parent
+	then
+
+		if (
+			RushNew.Position -
+			HRP.Position
+		).Magnitude <=
+		STOP_DISTANCE
+		then
+
+			completed = false
+			break
+
+		end
+
+	end
+
+end
+
+--==============================================================
+-- REBOUNDS
+--==============================================================
+
+if completed
+	and not jumpscareRunning
+	and REBOUNDS > 0
+then
+
+	for rebound = 1, REBOUNDS do
+
+		for i = #path, 1, -1 do
+
+			if jumpscareRunning then
+				break
+			end
+
+			local node =
+				path[i]
+
+			if not node
+				or not node.Parent
+			then
+				continue
+			end
+
+			local distance =
+				(
+					RushNew.Position -
+					node.Position
+				).Magnitude
+
+			local travelTime =
+				math.max(
+					distance / SPEED,
+					0.03
+				)
+
+			local tween =
+				TweenService:Create(
+					RushNew,
+
+					TweenInfo.new(
+						travelTime,
+						Enum.EasingStyle.Linear
+					),
+
+					{
+						CFrame =
+							CFrame.new(
+								node.Position +
+								OFFSET
+							)
+					}
+				)
+
+			tween:Play()
+
+			while
+				tween.PlaybackState ==
+				Enum.PlaybackState.Playing
+			do
+
+				if jumpscareRunning then
+
+					tween:Cancel()
+					break
+
+				end
+
+				RunService.Heartbeat:Wait()
+
+			end
+
+		end
+
+	end
+
+end
+
+--==============================================================
+-- FINAL STATE
+--==============================================================
+
+if completed
+	and not jumpscareRunning
+then
+
+	unanchorEntity()
+
+	if colorEffect then
+
+		TweenService:Create(
+			colorEffect,
+
+			TweenInfo.new(10),
+
+			{
+				TintColor =
+					Color3.fromRGB(
+						255,
+						255,
+						255
+					),
+
+				Saturation = 0,
+				Contrast = 0
+			}
+		):Play()
+
+		Debris:AddItem(
+			colorEffect,
+			10
+		)
+
+	end
+
+end
+
+--==============================================================
+-- DAMAGE
+--==============================================================
+
+RushNew.Touched:Connect(
+	function(hit)
+
+		if jumpscareRunning then
+			return
+		end
+
+		local model =
+			hit.Parent
+
+		if not model then
+			return
+		end
+
+		local hum =
+			model:FindFirstChildOfClass(
+				"Humanoid"
+			)
+
+		if hum then
+
+			hum:TakeDamage(100)
+
+		end
+
+	end
+)
+
+--==============================================================
+-- READY
+--==============================================================
+
+print("======================================")
+print("RIPPER READY")
+print("Model: Ripper")
+print("BasePart: RushNew")
+print("Attachment: Attachment")
+print("Face: Face1")
+print("Face1 is FROZEN")
+print("Other particles freeze")
+print("Crash sound: STARTS WITH FACE")
+print("Static: STARTS AFTER 3 SECONDS")
+print("Static ID: rbxassetid://170092034")
+print("Static PlaybackSpeed: 0.4")
+print("Static Looped: true")
+print("Static Fade In: true")
+print("Unanchor after kill: true")
+print("Camera Shake: SPAWN ONLY")
+print("======================================")
